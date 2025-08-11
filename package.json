@@ -3,7 +3,10 @@
   "version": "1.0.0",
   "description": "Example Chrome extension that changes background color",
   "scripts": {
-    "build": "rm -rf dist && mkdir dist && cd extension && zip -r ../dist/simple-extension.zip .",
+    "build": "rimraf dist && mkdir dist && cd extension && zip -r ../dist/simple-extension.zip .",
     "test": "node test/test.js"
+  },
+  "devDependencies": {
+    "rimraf": "^6.0.1"
   }
 }
