@@ -1,0 +1,11 @@
+{
+  "manifest_version": 3,
+  "name": "Habr Career Job Saver",
+  "version": "1.0",
+  "description": "Сохраняет вакансии с career.habr.com в выбранный файл",
+  "action": {
+    "default_popup": "popup.html"
+  },
+  "permissions": ["activeTab", "scripting", "downloads"],
+  "host_permissions": ["https://career.habr.com/*"]
+}
