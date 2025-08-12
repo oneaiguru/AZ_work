@@ -6,6 +6,6 @@
   "action": {
     "default_popup": "popup.html"
   },
-  "permissions": ["activeTab", "scripting", "downloads"],
+  "permissions": ["activeTab", "scripting", "downloads", "tabs"],
   "host_permissions": ["https://career.habr.com/*"]
 }
