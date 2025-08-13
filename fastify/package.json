@@ -1,0 +1,13 @@
+{
+  "name": "fastify-graphql-app",
+  "version": "1.0.0",
+  "description": "Simple Fastify server with GraphQL",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "fastify": "^4.0.0",
+    "mercurius": "^13.0.0"
+  }
+}
