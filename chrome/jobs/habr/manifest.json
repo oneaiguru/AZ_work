@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Habr Career Job Saver",
-  "version": "1.0",
-  "description": "Сохраняет вакансии с career.habr.com в выбранный файл",
+  "version": "1.1",
+  "description": "Сохраняет вакансии с career.habr.com в отдельные файлы и обновляет поле lastSeeing",
   "action": {
     "default_popup": "popup.html"
   },

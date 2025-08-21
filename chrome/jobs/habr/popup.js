@@ -8,20 +8,16 @@ document.addEventListener('DOMContentLoaded', () => {
   console.debug('Habr jobs plugin started');
 
   const folderInput = document.getElementById('folder');
-  const fileInput = document.getElementById('filename');
   const saveBtn = document.getElementById('save');
 
   folderInput.value = localStorage.getItem('folder') || '';
-  fileInput.value = localStorage.getItem('filename') || 'vacancies.json';
-  console.debug('Loaded initial settings', { folder: folderInput.value, filename: fileInput.value });
+  console.debug('Loaded initial settings', { folder: folderInput.value });
 
   saveBtn.addEventListener('click', async () => {
     console.debug('Save button clicked');
     const folder = folderInput.value.trim() || '';
-    const filename = fileInput.value.trim() || 'vacancies.json';
     localStorage.setItem('folder', folder);
-    localStorage.setItem('filename', filename);
-    console.debug('Settings saved', { folder, filename });
+    console.debug('Settings saved', { folder });
 
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     console.debug('Active tab retrieved', tab);
@@ -102,15 +98,37 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
 
-    const blob = new Blob([JSON.stringify(allResults, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const path = folder ? `${folder.replace(/\\$/,'')}/${filename}` : filename;
-    console.debug('Initiating download', { path });
-    chrome.downloads.download({ url, filename: path, saveAs: false }, downloadId => {
-      console.debug('Download started', downloadId);
-      URL.revokeObjectURL(url);
-      console.debug('Closing popup window');
-      window.close();
-    });
+    const saveJob = job => {
+      const id = job.url.split('/').filter(Boolean).pop();
+      const key = `job_${id}`;
+      const now = new Date().toISOString();
+      const stored = localStorage.getItem(key);
+      let data;
+      if (stored) {
+        const old = JSON.parse(stored);
+        data = { ...old, ...job, firstSeeing: old.firstSeeing, lastSeeing: now };
+      } else {
+        data = { ...job, firstSeeing: now, lastSeeing: now };
+      }
+      localStorage.setItem(key, JSON.stringify(data));
+
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const path = folder ? `${folder.replace(/\\$/,'')}/${id}.json` : `${id}.json`;
+      console.debug('Downloading vacancy', { id, path });
+      return new Promise(resolve => {
+        chrome.downloads.download({ url, filename: path, saveAs: false, conflictAction: 'overwrite' }, downloadId => {
+          URL.revokeObjectURL(url);
+          resolve(downloadId);
+        });
+      });
+    };
+
+    for (const job of allResults) {
+      await saveJob(job);
+    }
+
+    console.debug('All vacancies saved, closing popup window');
+    window.close();
   });
 });
