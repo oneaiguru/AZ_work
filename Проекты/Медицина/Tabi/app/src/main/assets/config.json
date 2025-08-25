@@ -1,9 +1,0 @@
-{
-  "sheets": [
-    {
-      "id": "sheet_id_1",
-      "range": "Лист1!A1:E100",
-      "credentials": "service-account-credentials.json"
-    }
-  ]
-}
