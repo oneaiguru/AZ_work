@@ -1,0 +1,17 @@
+# Node
+node_modules/
+dist/
+
+# Gradle
+**/gradle-wrapper.jar
+
+# Android build artifacts
+**/build/
+**/.gradle/
+local.properties
+*.iml
+.idea/
+
+# Generated binaries
+*.apk
+*.aab
