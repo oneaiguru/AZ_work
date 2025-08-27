@@ -1,0 +1,24 @@
+# Node dependencies
+node_modules/
+
+# Build outputs
+build/
+*/build/
+projects/tabi/build/
+projects/tabi/app/build/
+
+# Gradle cache
+.gradle/
+projects/tabi/.gradle/
+
+# IDE files
+.idea/
+*.iml
+.DS_Store
+
+# Local configuration
+local.properties
+projects/tabi/local.properties
+
+# Gradle wrapper binary
+projects/tabi/gradle/wrapper/gradle-wrapper.jar
