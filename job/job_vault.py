@@ -11,6 +11,10 @@ import sys
 import re
 import shutil
 import logging
+try:  # pragma: no cover - optional dependency
+    import yaml  # type: ignore
+except Exception:  # pragma: no cover
+    yaml = None
 from datetime import datetime
 from pathlib import Path
 from typing import Optional, List, Tuple
@@ -500,22 +504,38 @@ def import_from_clippings(clippings_root: Path, source: str, explicit_title: Opt
     print(f"   → with source: {copied_path.relative_to(pos_dir)}")
 
 def import_with_tag(clippings_root: Path, tag: str = "job"):
-    """Import all files from clippings_root containing given tag in meta."""
+    """Import all files from clippings_root containing given tag in YAML meta."""
     ensure_structure()
     root = Path(clippings_root).expanduser().resolve()
     if not root.exists() or not root.is_dir():
         print(f"❌ Clippings folder not found: {root}")  # pragma: no cover
         return  # pragma: no cover
-    pattern = re.compile(r"tags?:.*\b" + re.escape(tag) + r"\b", re.IGNORECASE)
+
+    def _extract_tags(text: str) -> List[str]:
+        if not text.startswith("---"):
+            return []
+        try:
+            after = text.split("---", 2)[1]
+        except IndexError:  # pragma: no cover
+            return []
+        try:
+            meta = yaml.safe_load(after) if yaml else {}
+        except Exception:  # pragma: no cover
+            meta = {}
+        tags = meta.get("tags", []) if isinstance(meta, dict) else []
+        if isinstance(tags, str):
+            tags = [tags]
+        return [str(t).lower() for t in tags]
+
+    wanted = tag.lower()
     imported = 0
     for item in root.iterdir():
         if item.is_file():
             try:
-                head = item.read_text(encoding="utf-8").splitlines()[:20]
+                text = item.read_text(encoding="utf-8")
             except Exception:  # pragma: no cover
                 continue  # pragma: no cover
-            text = "\n".join(head)
-            if pattern.search(text):
+            if wanted in _extract_tags(text):
                 import_from_clippings(root, item.name)
                 imported += 1
     logger.info("import_with_tag dir=%s tag=%s count=%s", root, tag, imported)

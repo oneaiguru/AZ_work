@@ -39,14 +39,18 @@ def test_add_and_move_with_prefix_and_logging(vault_tmp):
 def test_import_with_tag(vault_tmp, tmp_path):
     clippings = tmp_path / 'clips'
     clippings.mkdir()
-    (clippings / 'a.md').write_text('---\ntags: [job]\n---\ntext', encoding='utf-8')
-    (clippings / 'b.md').write_text('---\ntags: [other]\n---\ntext', encoding='utf-8')
+    (clippings / 'a.md').write_text('---\ntags:\n - job\n---\ntext', encoding='utf-8')
+    (clippings / 'b.md').write_text('---\ntags:\n - other\n---\ntext', encoding='utf-8')
+    (clippings / 'c.md').write_text('---\ntags: job\n---\ntext', encoding='utf-8')
+    (clippings / 'd.md').write_text('no meta here', encoding='utf-8')
     job_vault.import_with_tag(clippings, 'job')
     drafts = job_vault.BASE_DIR / 'Positions' / '010_Drafts'
     items = list(drafts.iterdir())
-    assert len(items) == 1
-    assert (clippings / 'a.md').exists() is False
-    assert (clippings / 'b.md').exists() is True
+    assert len(items) == 2
+    assert not (clippings / 'a.md').exists()
+    assert not (clippings / 'c.md').exists()
+    assert (clippings / 'b.md').exists()
+    assert (clippings / 'd.md').exists()
 
 
 def test_resolve_status_numeric_prefix():
