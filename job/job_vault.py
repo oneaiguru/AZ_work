@@ -30,6 +30,10 @@ logging.basicConfig(
 )
 logger = logging.getLogger("job_vault")
 
+# filename/path limits to avoid Windows MAX_PATH issues
+MAX_NAME_LEN = 120
+MAX_SLUG_LEN = 80
+
 # Canonical status directories (3-digit prefixes)
 STATUSES: dict[str, str] = {
     "010_Drafts": "Drafts",
@@ -116,10 +120,12 @@ REFERENCE_TEMPLATES = {  # pragma: no cover
 # ---------- path utils & sanitization ----------
 _INVALID_WIN = '<>:"/\\|?*'
 
-def sanitize_name(name: str) -> str:  # pragma: no cover
+def sanitize_name(name: str, max_len: int = MAX_NAME_LEN) -> str:  # pragma: no cover
     t = str(name).translate({ord(c): "_" for c in _INVALID_WIN})
     t = t.rstrip(" .")
     t = " ".join(t.split())
+    if len(t) > max_len:
+        t = t[:max_len]
     return t or "untitled"
 
 def is_subpath(child: Path, parent: Path) -> bool:  # pragma: no cover
@@ -130,6 +136,31 @@ def is_subpath(child: Path, parent: Path) -> bool:  # pragma: no cover
         return True
     except Exception:
         return False
+
+def _fix_long_names(root: Path) -> None:  # pragma: no cover
+    if not root.exists():
+        return
+    for p in sorted(root.rglob("*"), key=lambda x: len(str(x)), reverse=True):
+        if len(p.name) <= MAX_NAME_LEN:
+            continue
+        if p.is_dir():
+            m = _PREFIX_RE.match(p.name)
+            if m:
+                prefix = m.group(1)
+                slug = sanitize_name(p.name[m.end():], MAX_NAME_LEN - m.end())
+                new_name = f"{prefix}_{slug}" if slug else prefix
+            else:
+                new_name = sanitize_name(p.name)
+            target = p.with_name(new_name)
+        else:
+            stem, suffix = p.stem, p.suffix
+            new_stem = sanitize_name(stem, MAX_NAME_LEN - len(suffix))
+            target = p.with_name(new_stem + suffix)
+        if target.exists():
+            stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            target = target.with_name(f"{target.stem}_{stamp}{target.suffix}")
+        p.rename(target)
+        logger.info("truncate_path src=%s dst=%s", p, target)
 
 # ---------- migrations & structure ----------
 def _migrate_references():  # pragma: no cover
@@ -275,6 +306,7 @@ def ensure_structure():
                 p.write_text(content, encoding="utf-8")
 
     _migrate_positions_internal_three_digit()
+    _fix_long_names(BASE_DIR / "Positions")
 
 def create_base_structure():
     ensure_structure()
@@ -323,8 +355,8 @@ def _next_number_3digit_global() -> int:
     return min(nxt, 990)
 
 def _slugify(name: str) -> str:
-    safe = "".join(ch if ch.isalnum() or ch in "-_ ." else "_" for ch in name).strip()
-    return "_".join(safe.split())
+    safe = sanitize_name(name, MAX_SLUG_LEN)
+    return safe.replace(" ", "_")
 
 def resolve_status(user_status: str) -> str:
     if not user_status:
@@ -518,11 +550,30 @@ def import_with_tag(clippings_root: Path, tag: str = "job"):
             after = text.split("---", 2)[1]
         except IndexError:  # pragma: no cover
             return []
-        try:
-            meta = yaml.safe_load(after) if yaml else {}
-        except Exception:  # pragma: no cover
-            meta = {}
-        tags = meta.get("tags", []) if isinstance(meta, dict) else []
+        meta = None
+        if yaml:
+            try:
+                meta = yaml.safe_load(after)
+            except Exception:  # pragma: no cover
+                meta = None
+        if isinstance(meta, dict) and "tags" in meta:
+            tags = meta.get("tags", [])
+        else:
+            tags = []
+            lines = after.splitlines()
+            for i, ln in enumerate(lines):
+                if ln.strip().startswith("tags:"):
+                    rest = ln.split(":", 1)[1].strip()
+                    if rest:
+                        tags = [rest]
+                    else:
+                        j = i + 1
+                        while j < len(lines) and lines[j].startswith(" "):
+                            tag_line = lines[j].strip().lstrip("- ")
+                            if tag_line:
+                                tags.append(tag_line)
+                            j += 1
+                    break
         if isinstance(tags, str):
             tags = [tags]
         return [str(t).lower() for t in tags]

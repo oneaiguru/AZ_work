@@ -73,3 +73,16 @@ def test_add_clipping_to_position(vault_tmp, tmp_path):
     job_vault.add_clipping_to_position('010', '010_Clip_Test', str(source_file))
     clip = job_vault.BASE_DIR / 'Positions' / '010_Drafts' / '010_Clip_Test' / '060_Clippings' / 'src.txt'
     assert clip.exists()
+
+
+def test_init_truncates_long_names(vault_tmp):
+    job_vault.create_base_structure()
+    pos = job_vault.BASE_DIR / 'Positions' / '010_Drafts' / '010_Long_Name'
+    clips = pos / '060_Clippings'
+    clips.mkdir(parents=True)
+    long_name = 'a' * (job_vault.MAX_NAME_LEN + 20) + '.md'
+    (clips / long_name).write_text('x', encoding='utf-8')
+    job_vault.create_base_structure()
+    files = list(clips.iterdir())
+    assert len(files) == 1
+    assert len(files[0].name) <= job_vault.MAX_NAME_LEN
