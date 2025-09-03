@@ -642,6 +642,7 @@ def resolve_position_arg(pos_arg: str) -> Tuple[str, Path]:  # pragma: no cover
     Resolve a position argument which can be:
     - "<statusAlias>/<positionFolder>"
     - "<positionFolder>" (searched across statuses; error if ambiguous)
+    - "<numericPrefix>" (searched across statuses; error if not found)
     - "<absolute path to position folder>"
     """
     pos_arg_norm = pos_arg.replace("\\", "/")
@@ -659,6 +660,24 @@ def resolve_position_arg(pos_arg: str) -> Tuple[str, Path]:  # pragma: no cover
             raise FileNotFoundError(f"Position not found at: Positions/{src_status_key}/{right}")
         return src_status_key, src_path
 
+    if pos_arg_norm.isdigit():
+        matches: List[Tuple[str, Path]] = []
+        for status_key in STATUSES.keys():
+            status_dir = BASE_DIR / "Positions" / status_key
+            if not status_dir.exists():
+                continue
+            for d in status_dir.iterdir():
+                if _get_3digit_prefix(d.name) == int(pos_arg_norm):
+                    matches.append((status_key, d))
+        if not matches:
+            raise FileNotFoundError(f"Position with prefix '{pos_arg}' not found in any status.")
+        if len(matches) > 1:  # pragma: no cover
+            options = ", ".join([m[0] for m in matches])
+            raise RuntimeError(
+                f"Ambiguous prefix '{pos_arg}' found in multiple statuses: {options}."
+            )
+        return matches[0]
+
     matches = find_position_candidates(pos_arg_norm)
     if not matches:
         raise FileNotFoundError(f"Position folder '{pos_arg}' not found in any status.")
@@ -666,7 +685,7 @@ def resolve_position_arg(pos_arg: str) -> Tuple[str, Path]:  # pragma: no cover
         options = ", ".join([m[0] for m in matches])
         raise RuntimeError(
             f"Ambiguous position '{pos_arg}' found in multiple statuses: {options}. "
-            f"Disambiguate with 'applied/{pos_arg}' (etc.) or pass an absolute path."
+            f"Disambiguate with 'applied/{pos_arg}' (etc.) or pass an absolute path.",
         )
     return matches[0]
 
@@ -674,6 +693,13 @@ def move_position_auto(pos_arg: str, dst_status: str):
     ensure_structure()
     src_status_key, src_path = resolve_position_arg(pos_arg)
     dst_status_key = resolve_status(dst_status)
+
+    if pos_arg.isdigit():
+        full_name = f"{src_status_key}/{src_path.name}"
+        reply = input(f"Move {full_name} to {dst_status_key}? [y/N]: ").strip().lower()
+        if reply not in {"y", "yes"}:
+            print("❌ Move cancelled")
+            return
 
     if not src_path.exists():  # pragma: no cover
         print(f"❌ Position not found: {pos_arg}")  # pragma: no cover
@@ -748,7 +774,7 @@ USAGE = (
     "Usage:\n"
     "  init\n"
     "  add <status> <title>\n"
-    "  move <positionFolder | statusAlias/positionFolder | /absolute/path/to/position> <dst_status>\n"
+    "  move <positionFolder | statusAlias/positionFolder | numericPrefix | /absolute/path/to/position> <dst_status>\n"
     "  clip <status> <pos_name> <latest|/path/to/file> [new_name]\n"
     "  import <clippings_dir> <latest|name|path> [title]\n"
     "  import-tag <clippings_dir> [tag]  # default tag: job\n"
