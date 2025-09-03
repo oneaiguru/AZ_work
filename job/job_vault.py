@@ -33,10 +33,15 @@ logger = logging.getLogger("job_vault")
 # filename/path limits to avoid Windows MAX_PATH issues
 MAX_NAME_LEN = 120
 MAX_SLUG_LEN = 80
+# Windows traditionally limits full paths to 260 characters.  We keep a
+# slightly smaller margin to allow the repository itself to live in a deeper
+# folder on the user's machine.
+MAX_PATH_LEN = 240
 
 # Canonical status directories (3-digit prefixes)
 STATUSES: dict[str, str] = {
     "010_Drafts": "Drafts",
+    "012_Later": "Later",
     "015_Misfits": "Misfits",
     "020_Fits": "Fits",
     "030_Applied": "Applied",
@@ -60,6 +65,7 @@ OLD_STATUS_MAP: dict[str, str] = {  # pragma: no cover
 # CLI aliases (lowercase) → canonical status dirs
 _STATUS_ALIASES_RAW = {
     "draft": "010_Drafts", "drafts": "010_Drafts",
+    "later": "012_Later",
     "misfit": "015_Misfits", "misfits": "015_Misfits",
     "fit": "020_Fits", "fits": "020_Fits",
     "applied": "030_Applied",
@@ -140,27 +146,41 @@ def is_subpath(child: Path, parent: Path) -> bool:  # pragma: no cover
 def _fix_long_names(root: Path) -> None:  # pragma: no cover
     if not root.exists():
         return
-    for p in sorted(root.rglob("*"), key=lambda x: len(str(x)), reverse=True):
-        if len(p.name) <= MAX_NAME_LEN:
-            continue
-        if p.is_dir():
-            m = _PREFIX_RE.match(p.name)
-            if m:
-                prefix = m.group(1)
-                slug = sanitize_name(p.name[m.end():], MAX_NAME_LEN - m.end())
-                new_name = f"{prefix}_{slug}" if slug else prefix
+
+    changed = True
+    while changed:
+        changed = False
+        for p in sorted(root.rglob("*"), key=lambda x: len(str(x)), reverse=True):
+            path_len = len(str(p))
+            if len(p.name) <= MAX_NAME_LEN and path_len <= MAX_PATH_LEN:
+                continue
+
+            parent_len = len(str(p.parent))
+            allowed = MAX_PATH_LEN - parent_len - 1
+            max_len = min(MAX_NAME_LEN, allowed)
+            if max_len <= 0:
+                continue
+
+            if p.is_dir():
+                m = _PREFIX_RE.match(p.name)
+                if m:
+                    prefix = m.group(1)
+                    slug = sanitize_name(p.name[m.end():], max_len - m.end())
+                    new_name = f"{prefix}_{slug}" if slug else prefix
+                else:
+                    new_name = sanitize_name(p.name, max_len)
+                target = p.with_name(new_name)
             else:
-                new_name = sanitize_name(p.name)
-            target = p.with_name(new_name)
-        else:
-            stem, suffix = p.stem, p.suffix
-            new_stem = sanitize_name(stem, MAX_NAME_LEN - len(suffix))
-            target = p.with_name(new_stem + suffix)
-        if target.exists():
-            stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            target = target.with_name(f"{target.stem}_{stamp}{target.suffix}")
-        p.rename(target)
-        logger.info("truncate_path src=%s dst=%s", p, target)
+                stem, suffix = p.stem, p.suffix
+                new_stem = sanitize_name(stem, max_len - len(suffix))
+                target = p.with_name(new_stem + suffix)
+
+            if target.exists():
+                stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                target = target.with_name(f"{target.stem}_{stamp}{target.suffix}")
+            p.rename(target)
+            logger.info("truncate_path src=%s dst=%s", p, target)
+            changed = True
 
 # ---------- migrations & structure ----------
 def _migrate_references():  # pragma: no cover
@@ -624,6 +644,7 @@ def resolve_position_arg(pos_arg: str) -> Tuple[str, Path]:  # pragma: no cover
     Resolve a position argument which can be:
     - "<statusAlias>/<positionFolder>"
     - "<positionFolder>" (searched across statuses; error if ambiguous)
+    - "<numericPrefix>" (searched across statuses; error if not found)
     - "<absolute path to position folder>"
     """
     pos_arg_norm = pos_arg.replace("\\", "/")
@@ -641,6 +662,24 @@ def resolve_position_arg(pos_arg: str) -> Tuple[str, Path]:  # pragma: no cover
             raise FileNotFoundError(f"Position not found at: Positions/{src_status_key}/{right}")
         return src_status_key, src_path
 
+    if pos_arg_norm.isdigit():
+        matches: List[Tuple[str, Path]] = []
+        for status_key in STATUSES.keys():
+            status_dir = BASE_DIR / "Positions" / status_key
+            if not status_dir.exists():
+                continue
+            for d in status_dir.iterdir():
+                if _get_3digit_prefix(d.name) == int(pos_arg_norm):
+                    matches.append((status_key, d))
+        if not matches:
+            raise FileNotFoundError(f"Position with prefix '{pos_arg}' not found in any status.")
+        if len(matches) > 1:  # pragma: no cover
+            options = ", ".join([m[0] for m in matches])
+            raise RuntimeError(
+                f"Ambiguous prefix '{pos_arg}' found in multiple statuses: {options}."
+            )
+        return matches[0]
+
     matches = find_position_candidates(pos_arg_norm)
     if not matches:
         raise FileNotFoundError(f"Position folder '{pos_arg}' not found in any status.")
@@ -648,7 +687,7 @@ def resolve_position_arg(pos_arg: str) -> Tuple[str, Path]:  # pragma: no cover
         options = ", ".join([m[0] for m in matches])
         raise RuntimeError(
             f"Ambiguous position '{pos_arg}' found in multiple statuses: {options}. "
-            f"Disambiguate with 'applied/{pos_arg}' (etc.) or pass an absolute path."
+            f"Disambiguate with 'applied/{pos_arg}' (etc.) or pass an absolute path.",
         )
     return matches[0]
 
@@ -656,6 +695,13 @@ def move_position_auto(pos_arg: str, dst_status: str):
     ensure_structure()
     src_status_key, src_path = resolve_position_arg(pos_arg)
     dst_status_key = resolve_status(dst_status)
+
+    if pos_arg.isdigit():
+        full_name = f"{src_status_key}/{src_path.name}"
+        reply = input(f"Move {full_name} to {dst_status_key}? [y/N]: ").strip().lower()
+        if reply not in {"y", "yes"}:
+            print("❌ Move cancelled")
+            return
 
     if not src_path.exists():  # pragma: no cover
         print(f"❌ Position not found: {pos_arg}")  # pragma: no cover
@@ -730,7 +776,7 @@ USAGE = (
     "Usage:\n"
     "  init\n"
     "  add <status> <title>\n"
-    "  move <positionFolder | statusAlias/positionFolder | /absolute/path/to/position> <dst_status>\n"
+    "  move <positionFolder | statusAlias/positionFolder | numericPrefix | /absolute/path/to/position> <dst_status>\n"
     "  clip <status> <pos_name> <latest|/path/to/file> [new_name]\n"
     "  import <clippings_dir> <latest|name|path> [title]\n"
     "  import-tag <clippings_dir> [tag]  # default tag: job\n"

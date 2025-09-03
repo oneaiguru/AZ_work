@@ -25,15 +25,27 @@ def vault_tmp(tmp_path, monkeypatch):
     return tmp_path
 
 
-def test_add_and_move_with_prefix_and_logging(vault_tmp):
+def test_add_and_move_with_prefix_and_logging(vault_tmp, monkeypatch):
     job_vault.create_base_structure()
     job_vault.add_position('drafts', 'Test Position')
-    job_vault.move_position_auto('010_Test_Position', '015')
-    dst = job_vault.BASE_DIR / 'Positions' / '015_Misfits' / '010_Test_Position'
+    monkeypatch.setattr('builtins.input', lambda _='': 'y')
+    job_vault.move_position_auto('010', '012')
+    dst = job_vault.BASE_DIR / 'Positions' / '012_Later' / '010_Test_Position'
     assert dst.exists()
     assert job_vault.LOG_FILE.exists()
     content = job_vault.LOG_FILE.read_text()
     assert 'add_position' in content and 'move_position' in content
+
+
+def test_move_cancelled_without_confirmation(vault_tmp, monkeypatch):
+    job_vault.create_base_structure()
+    job_vault.add_position('drafts', 'Stay Put')
+    monkeypatch.setattr('builtins.input', lambda _='': 'n')
+    job_vault.move_position_auto('010', '015')
+    src = job_vault.BASE_DIR / 'Positions' / '010_Drafts' / '010_Stay_Put'
+    dst = job_vault.BASE_DIR / 'Positions' / '015_Misfits' / '010_Stay_Put'
+    assert src.exists()
+    assert not dst.exists()
 
 
 def test_import_with_tag(vault_tmp, tmp_path):
@@ -54,6 +66,8 @@ def test_import_with_tag(vault_tmp, tmp_path):
 
 
 def test_resolve_status_numeric_prefix():
+    assert job_vault.resolve_status('012') == '012_Later'
+    assert job_vault.resolve_status('later') == '012_Later'
     assert job_vault.resolve_status('015') == '015_Misfits'
     assert job_vault.resolve_status('misfit') == '015_Misfits'
     assert job_vault.resolve_status('015_Misfits') == '015_Misfits'
@@ -86,3 +100,18 @@ def test_init_truncates_long_names(vault_tmp):
     files = list(clips.iterdir())
     assert len(files) == 1
     assert len(files[0].name) <= job_vault.MAX_NAME_LEN
+
+
+def test_init_truncates_long_paths(vault_tmp):
+    job_vault.create_base_structure()
+    pos = job_vault.BASE_DIR / 'Positions' / '010_Drafts' / ('010_' + 'a' * 100)
+    clips = pos / '060_Clippings'
+    clips.mkdir(parents=True)
+    long_name = 'b' * 100 + '.md'
+    (clips / long_name).write_text('x', encoding='utf-8')
+    job_vault.create_base_structure()
+    drafts = job_vault.BASE_DIR / 'Positions' / '010_Drafts'
+    position_dir = next(drafts.iterdir())
+    files = list((position_dir / '060_Clippings').iterdir())
+    assert len(files) == 1
+    assert len(str(files[0])) <= job_vault.MAX_PATH_LEN
