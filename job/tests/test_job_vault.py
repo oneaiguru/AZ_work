@@ -86,3 +86,18 @@ def test_init_truncates_long_names(vault_tmp):
     files = list(clips.iterdir())
     assert len(files) == 1
     assert len(files[0].name) <= job_vault.MAX_NAME_LEN
+
+
+def test_init_truncates_long_paths(vault_tmp):
+    job_vault.create_base_structure()
+    pos = job_vault.BASE_DIR / 'Positions' / '010_Drafts' / ('010_' + 'a' * 100)
+    clips = pos / '060_Clippings'
+    clips.mkdir(parents=True)
+    long_name = 'b' * 100 + '.md'
+    (clips / long_name).write_text('x', encoding='utf-8')
+    job_vault.create_base_structure()
+    drafts = job_vault.BASE_DIR / 'Positions' / '010_Drafts'
+    position_dir = next(drafts.iterdir())
+    files = list((position_dir / '060_Clippings').iterdir())
+    assert len(files) == 1
+    assert len(str(files[0])) <= job_vault.MAX_PATH_LEN
