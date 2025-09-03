@@ -29,8 +29,8 @@ def test_add_and_move_with_prefix_and_logging(vault_tmp, monkeypatch):
     job_vault.create_base_structure()
     job_vault.add_position('drafts', 'Test Position')
     monkeypatch.setattr('builtins.input', lambda _='': 'y')
-    job_vault.move_position_auto('010', '015')
-    dst = job_vault.BASE_DIR / 'Positions' / '015_Misfits' / '010_Test_Position'
+    job_vault.move_position_auto('010', '012')
+    dst = job_vault.BASE_DIR / 'Positions' / '012_Later' / '010_Test_Position'
     assert dst.exists()
     assert job_vault.LOG_FILE.exists()
     content = job_vault.LOG_FILE.read_text()
@@ -66,6 +66,8 @@ def test_import_with_tag(vault_tmp, tmp_path):
 
 
 def test_resolve_status_numeric_prefix():
+    assert job_vault.resolve_status('012') == '012_Later'
+    assert job_vault.resolve_status('later') == '012_Later'
     assert job_vault.resolve_status('015') == '015_Misfits'
     assert job_vault.resolve_status('misfit') == '015_Misfits'
     assert job_vault.resolve_status('015_Misfits') == '015_Misfits'

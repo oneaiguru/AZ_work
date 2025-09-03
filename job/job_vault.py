@@ -41,6 +41,7 @@ MAX_PATH_LEN = 240
 # Canonical status directories (3-digit prefixes)
 STATUSES: dict[str, str] = {
     "010_Drafts": "Drafts",
+    "012_Later": "Later",
     "015_Misfits": "Misfits",
     "020_Fits": "Fits",
     "030_Applied": "Applied",
@@ -64,6 +65,7 @@ OLD_STATUS_MAP: dict[str, str] = {  # pragma: no cover
 # CLI aliases (lowercase) → canonical status dirs
 _STATUS_ALIASES_RAW = {
     "draft": "010_Drafts", "drafts": "010_Drafts",
+    "later": "012_Later",
     "misfit": "015_Misfits", "misfits": "015_Misfits",
     "fit": "020_Fits", "fits": "020_Fits",
     "applied": "030_Applied",
