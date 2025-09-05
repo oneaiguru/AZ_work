@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>job_meta</title>
+  <style>
+    body { font-family: sans-serif; margin: 1em; }
+    label { display: block; margin-top: 0.5em; }
+  </style>
+</head>
+<body>
+  <h1>job_meta</h1>
+  <label>Выберите папку с md файлами:
+    <input type="file" id="folder" webkitdirectory multiple />
+  </label>
+  <label>
+    <input type="checkbox" id="debug" /> Режим отладки (один файл)
+  </label>
+  <button id="process">Обработать</button>
+  <pre id="log"></pre>
+  <script src="popup.js"></script>
+</body>
+</html>
