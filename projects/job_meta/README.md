@@ -13,7 +13,7 @@ Chrome extension for enriching job markdown files with structured metadata via C
 ## Usage
 1. Build or load the extension in Chrome via `chrome://extensions` (Developer mode).
 2. Make sure you are logged into [chat.openai.com](https://chat.openai.com).
-3. Open the popup and choose a folder with markdown files.
+3. Open the popup, click **Выбрать** and select a folder with markdown files.
 4. Click **Обработать** to run. Enable debug mode to handle a single file.
 
 The project also contains prompt descriptions in the [`prompt`](prompt) directory.

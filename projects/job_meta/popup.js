@@ -1,39 +1,71 @@
-const folderInput = document.getElementById('folder');
+const chooseBtn = document.getElementById('choose');
+const folderLabel = document.getElementById('folder');
 const processBtn = document.getElementById('process');
 const logEl = document.getElementById('log');
+let dirHandle = null;
 
 function log(msg) {
   logEl.textContent += msg + '\n';
 }
 
+
+chooseBtn.addEventListener('click', async () => {
+  try {
+    dirHandle = await window.showDirectoryPicker();
+    const perm = await dirHandle.requestPermission({ mode: 'readwrite' });
+    if (perm !== 'granted') {
+      dirHandle = null;
+      log('Нет доступа к папке');
+      return;
+    }
+    folderLabel.textContent = dirHandle.name;
+  } catch (e) {
+    log('Не удалось получить доступ к папке');
+  }
+});
+
 processBtn.addEventListener('click', async () => {
-  const files = Array.from(folderInput.files);
-  if (!files.length) {
+  if (!dirHandle) {
     log('Выберите папку');
     return;
   }
   const debug = document.getElementById('debug').checked;
   const processed = await getProcessed();
 
-  for (const file of files) {
-    if (!file.name.endsWith('.md')) continue;
+  let count = 0;
+  for await (const { path, handle } of walkDir(dirHandle)) {
+    if (processed[path]) continue;
+    const file = await handle.getFile();
     const text = await file.text();
     if (!/tag\s*:\s*job/.test(text)) continue;
-    if (processed[file.name]) continue;
-    log(`Processing ${file.name}`);
+    log(`Processing ${path}`);
     const result = await parseJob(text);
     if (!result) {
       log('Не удалось обработать файл');
       continue;
     }
     const updated = addMeta(text, result.attrs);
-    await saveFile(file.name, updated);
-    processed[file.name] = true;
+    const writable = await handle.createWritable();
+    await writable.write(updated);
+    await writable.close();
+    processed[path] = true;
     await setProcessed(processed);
-    log(`Готово: ${file.name}`);
-    if (debug) break;
+    log(`Готово: ${path}`);
+    count++;
+    if (debug && count >= 1) break;
   }
 });
+
+async function* walkDir(dir, prefix = '') {
+  for await (const [name, handle] of dir.entries()) {
+    const path = `${prefix}${name}`;
+    if (handle.kind === 'file' && name.endsWith('.md')) {
+      yield { path, handle };
+    } else if (handle.kind === 'directory') {
+      yield* walkDir(handle, `${path}/`);
+    }
+  }
+}
 
 async function ensureChatTab() {
   const tabs = await chrome.tabs.query({ url: 'https://chat.openai.com/*' });
@@ -79,13 +111,6 @@ function addMeta(text, attrs) {
     }
   }
   return `---\n${lines.join('\n')}\n---\n${text}`;
-}
-
-async function saveFile(name, content) {
-  const handle = await window.showSaveFilePicker({ suggestedName: name, types: [{ description: 'Markdown', accept: { 'text/markdown': ['.md'] } }] });
-  const writable = await handle.createWritable();
-  await writable.write(content);
-  await writable.close();
 }
 
 function getProcessed() {
