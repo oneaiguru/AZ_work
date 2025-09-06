@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>job_meta</title>
+  <style>
+    body { font-family: sans-serif; margin: 1em; }
+    label { display: block; margin-top: 0.5em; }
+  </style>
+</head>
+<body>
+  <h1>job_meta</h1>
+  <label>Папка с md файлами:
+    <button id="choose">Выбрать</button>
+    <span id="folder" style="margin-left:0.5em"></span>
+  </label>
+  <label>
+    <input type="checkbox" id="debug" /> Режим отладки (один файл)
+  </label>
+  <button id="process">Обработать</button>
+  <pre id="log"></pre>
+  <script src="popup.js"></script>
+</body>
+</html>
