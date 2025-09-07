@@ -1,0 +1,14 @@
+{
+  "manifest_version": 3,
+  "name": "Markdown Folder Viewer",
+  "version": "1.0",
+  "description": "Select a folder of markdown files, tag them with last opened time and render as HTML.",
+  "permissions": ["storage"],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self';"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "MD Viewer"
+  }
+}
