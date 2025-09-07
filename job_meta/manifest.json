@@ -1,0 +1,11 @@
+{
+  "manifest_version": 3,
+  "name": "Job Meta",
+  "version": "1.0",
+  "description": "Process Markdown files, record last opened time, and output HTML.",
+  "permissions": ["storage"],
+  "action": {
+    "default_title": "Process Markdown",
+    "default_popup": "popup.html"
+  }
+}
