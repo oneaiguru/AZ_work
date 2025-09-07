@@ -6,6 +6,7 @@ Chrome extension that processes Markdown documents in a chosen folder. When a fo
 - Adds/updates a `lastOpened` attribute in the document's front matter with the current timestamp.
 - Renders the Markdown content to HTML inside the popup window.
 - Logs each operation in debug mode.
+- Bundles the Work Sans font locally to comply with Chrome's content security policy.
 
 ## Usage
 
