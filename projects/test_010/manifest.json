@@ -5,7 +5,7 @@
   "description": "Select a folder of markdown files, tag them with last opened time and render as HTML.",
   "permissions": ["storage"],
   "content_security_policy": {
-    "extension_pages": "script-src 'self'; object-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self';"
+    "extension_pages": "script-src 'self'; object-src 'self'; style-src 'self'; font-src 'self';"
   },
   "action": {
     "default_popup": "popup.html",

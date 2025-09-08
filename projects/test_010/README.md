@@ -7,6 +7,7 @@ Chrome extension that processes Markdown documents in a chosen folder. When a fo
 - Renders the Markdown content to HTML inside the popup window.
 - Logs each operation in debug mode.
 - Bundles the Work Sans font locally to comply with Chrome's content security policy.
+- Includes a local copy of the Marked parser so no external scripts are required (see `MARKED_LICENSE.md`).
 
 ## Usage
 
