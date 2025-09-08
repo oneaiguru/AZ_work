@@ -1,0 +1,9 @@
+@font-face {
+  font-family: 'Work Sans';
+  src: url('WorkSans-Regular.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+}
+
+body { font-family: 'Work Sans', sans-serif; margin: 1em; }
+#output h2 { margin-top: 1em; }
