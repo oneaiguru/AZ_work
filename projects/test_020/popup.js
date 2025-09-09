@@ -4,10 +4,32 @@ const folderDisplay = document.getElementById('folderDisplay');
 const fileList = document.getElementById('fileList');
 
 let debug = false;
+let logFileEntry;
+
+// Prepare log file in the extension directory
+try {
+  chrome.runtime.getPackageDirectoryEntry(root => {
+    root.getFile('log.txt', { create: true }, fileEntry => {
+      logFileEntry = fileEntry;
+    });
+  });
+} catch (e) {
+  // In environments where this API isn't available, logs will only go to console
+  console.error('Log file init failed', e);
+}
 
 function log(...args) {
-  if (debug) {
-    console.log(...args);
+  if (!debug) return;
+  const message = args.join(' ');
+  console.log(message);
+
+  if (logFileEntry) {
+    logFileEntry.createWriter(writer => {
+      logFileEntry.file(file => {
+        writer.seek(file.size);
+        writer.write(new Blob([message + '\n'], { type: 'text/plain' }));
+      });
+    });
   }
 }
 
@@ -49,5 +71,6 @@ folderPicker.addEventListener('change', (e) => {
   } catch (err) {
     folderDisplay.textContent = 'Error reading files';
     console.error(err);
+    log('Error:', err.message);
   }
 });
