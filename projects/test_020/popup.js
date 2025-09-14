@@ -1,21 +1,43 @@
 const debugToggle = document.getElementById('debugToggle');
-const folderPicker = document.getElementById('folderPicker');
+const pickFolder = document.getElementById('pickFolder');
 const folderDisplay = document.getElementById('folderDisplay');
 const fileList = document.getElementById('fileList');
 
 let debug = false;
+let logHandle;
+let pendingLogs = [];
 
-function log(...args) {
+function logToConsole(...args) {
   if (debug) {
     console.log(...args);
   }
 }
 
+async function appendLog(message) {
+  if (!logHandle) {
+    pendingLogs.push(message);
+    return;
+  }
+  const writable = await logHandle.createWritable({ keepExistingData: true });
+  await writable.write(message + "\n");
+  await writable.close();
+}
+
+async function flushPending() {
+  if (!logHandle) return;
+  for (const msg of pendingLogs) {
+    const writable = await logHandle.createWritable({ keepExistingData: true });
+    await writable.write(msg + "\n");
+    await writable.close();
+
+  }
+  pendingLogs = [];
+}
+
 debugToggle.addEventListener('change', () => {
   debug = debugToggle.checked;
-  log('Debug mode:', debug);
+  logToConsole('Debug mode:', debug);
 });
-
 folderPicker.addEventListener('change', (e) => {
   const files = Array.from(e.target.files).filter(f => f.name.endsWith('.md'));
   if (files.length === 0) {
@@ -34,6 +56,13 @@ folderPicker.addEventListener('change', (e) => {
   const names = files.slice(0, limit).map(f => f.name);
   fileList.innerHTML = names.map(n => `<li>${n}</li>`).join('');
 
-  names.forEach(name => log('Processed file:', name));
-  log('Done');
+  for (const name of names) {
+    await appendLog(`processFile params: {"name":"${name}"}`);
+    await appendLog(`processFile result: "${name}"`);
+    logToConsole('Processed file:', name);
+  }
+
+  await appendLog('Done');
+  logToConsole('Done');
+
 });
