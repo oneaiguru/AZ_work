@@ -21,3 +21,4 @@ checkbox limits processing to a single file.
 4. Click **Pick Folder** and choose a directory of Markdown documents.
    A `log.txt` file is created in the folder and updated after each step.
    The file names will appear in the list.
+

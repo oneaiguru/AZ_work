@@ -29,6 +29,7 @@ async function flushPending() {
     const writable = await logHandle.createWritable({ keepExistingData: true });
     await writable.write(msg + "\n");
     await writable.close();
+
   }
   pendingLogs = [];
 }
@@ -37,25 +38,19 @@ debugToggle.addEventListener('change', () => {
   debug = debugToggle.checked;
   logToConsole('Debug mode:', debug);
 });
-
-pickFolder.addEventListener('click', async () => {
-  await appendLog('showDirectoryPicker params: {}');
-  const dirHandle = await window.showDirectoryPicker();
-  await appendLog(`showDirectoryPicker result: ${dirHandle.name}`);
-  await appendLog('openLogFile params: {"name":"log.txt"}');
-  logHandle = await dirHandle.getFileHandle('log.txt', { create: true });
-  await flushPending();
-  await appendLog('openLogFile result: log.txt');
-  folderDisplay.textContent = 'Selected folder: ' + dirHandle.name;
-
-  await appendLog(`listFiles params: {"folder":"${dirHandle.name}"}`);
-  const files = [];
-  for await (const [name, handle] of dirHandle.entries()) {
-    if (name.endsWith('.md') && handle.kind === 'file') {
-      files.push({ name, handle });
-    }
+folderPicker.addEventListener('change', (e) => {
+  const files = Array.from(e.target.files).filter(f => f.name.endsWith('.md'));
+  if (files.length === 0) {
+    folderDisplay.textContent = 'No markdown files found.';
+    fileList.innerHTML = '';
+    log('No markdown files found');
+    return;
   }
-  await appendLog(`listFiles result: ${JSON.stringify(files.map(f => f.name))}`);
+
+  const firstPath = files[0].webkitRelativePath;
+  const folderPath = firstPath.substring(0, firstPath.lastIndexOf('/'));
+  folderDisplay.textContent = 'Selected folder: ' + folderPath;
+  log('Selected folder:', folderPath);
 
   const limit = debug ? 1 : 10;
   const names = files.slice(0, limit).map(f => f.name);
@@ -69,4 +64,5 @@ pickFolder.addEventListener('click', async () => {
 
   await appendLog('Done');
   logToConsole('Done');
+
 });
