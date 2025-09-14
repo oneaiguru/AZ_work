@@ -1,76 +1,72 @@
 const debugToggle = document.getElementById('debugToggle');
-const folderPicker = document.getElementById('folderPicker');
+const pickFolder = document.getElementById('pickFolder');
 const folderDisplay = document.getElementById('folderDisplay');
 const fileList = document.getElementById('fileList');
 
 let debug = false;
-let logFileEntry;
+let logHandle;
+let pendingLogs = [];
 
-// Prepare log file in the extension directory
-try {
-  chrome.runtime.getPackageDirectoryEntry(root => {
-    root.getFile('log.txt', { create: true }, fileEntry => {
-      logFileEntry = fileEntry;
-    });
-  });
-} catch (e) {
-  // In environments where this API isn't available, logs will only go to console
-  console.error('Log file init failed', e);
+function logToConsole(...args) {
+  if (debug) {
+    console.log(...args);
+  }
 }
 
-function log(...args) {
-  if (!debug) return;
-  const message = args.join(' ');
-  console.log(message);
-
-  if (logFileEntry) {
-    logFileEntry.createWriter(writer => {
-      logFileEntry.file(file => {
-        writer.seek(file.size);
-        writer.write(new Blob([message + '\n'], { type: 'text/plain' }));
-      });
-    });
+async function appendLog(message) {
+  if (!logHandle) {
+    pendingLogs.push(message);
+    return;
   }
+  const writable = await logHandle.createWritable({ keepExistingData: true });
+  await writable.write(message + "\n");
+  await writable.close();
+}
+
+async function flushPending() {
+  if (!logHandle) return;
+  for (const msg of pendingLogs) {
+    const writable = await logHandle.createWritable({ keepExistingData: true });
+    await writable.write(msg + "\n");
+    await writable.close();
+  }
+  pendingLogs = [];
 }
 
 debugToggle.addEventListener('change', () => {
   debug = debugToggle.checked;
-  log('Debug mode:', debug);
+  logToConsole('Debug mode:', debug);
 });
 
-folderPicker.addEventListener('change', (e) => {
-  try {
-    const limit = debug ? 1 : 10;
-    const names = [];
-    let folderPath = '';
+pickFolder.addEventListener('click', async () => {
+  await appendLog('showDirectoryPicker params: {}');
+  const dirHandle = await window.showDirectoryPicker();
+  await appendLog(`showDirectoryPicker result: ${dirHandle.name}`);
+  await appendLog('openLogFile params: {"name":"log.txt"}');
+  logHandle = await dirHandle.getFileHandle('log.txt', { create: true });
+  await flushPending();
+  await appendLog('openLogFile result: log.txt');
+  folderDisplay.textContent = 'Selected folder: ' + dirHandle.name;
 
-    for (const file of e.target.files) {
-      if (!file.name.endsWith('.md')) continue;
-
-      if (!folderPath && file.webkitRelativePath) {
-        const firstPath = file.webkitRelativePath;
-        folderPath = firstPath.substring(0, firstPath.lastIndexOf('/'));
-        folderDisplay.textContent = 'Selected folder: ' + folderPath;
-        log('Selected folder:', folderPath);
-      }
-
-      names.push(file.name);
-      if (names.length >= limit) break;
+  await appendLog(`listFiles params: {"folder":"${dirHandle.name}"}`);
+  const files = [];
+  for await (const [name, handle] of dirHandle.entries()) {
+    if (name.endsWith('.md') && handle.kind === 'file') {
+      files.push({ name, handle });
     }
-
-    if (names.length === 0) {
-      folderDisplay.textContent = 'No markdown files found.';
-      fileList.innerHTML = '';
-      log('No markdown files found');
-      return;
-    }
-
-    fileList.innerHTML = names.map(n => `<li>${n}</li>`).join('');
-    names.forEach(name => log('Processed file:', name));
-    log('Done');
-  } catch (err) {
-    folderDisplay.textContent = 'Error reading files';
-    console.error(err);
-    log('Error:', err.message);
   }
+  await appendLog(`listFiles result: ${JSON.stringify(files.map(f => f.name))}`);
+
+  const limit = debug ? 1 : 10;
+  const names = files.slice(0, limit).map(f => f.name);
+  fileList.innerHTML = names.map(n => `<li>${n}</li>`).join('');
+
+  for (const name of names) {
+    await appendLog(`processFile params: {"name":"${name}"}`);
+    await appendLog(`processFile result: "${name}"`);
+    logToConsole('Processed file:', name);
+  }
+
+  await appendLog('Done');
+  logToConsole('Done');
 });
