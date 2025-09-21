@@ -1,9 +1,0 @@
-{
-  "manifest_version": 3,
-  "name": "test_020",
-  "version": "1.0",
-  "description": "Select a folder of Markdown documents and list file names.",
-  "action": {
-    "default_popup": "popup.html"
-  }
-}
