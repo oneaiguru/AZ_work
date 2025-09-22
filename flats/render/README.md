@@ -13,6 +13,7 @@ This folder contains the detailed description of the apartment concept "Лесн
 
 ```bash
 pip install matplotlib numpy
+
 ```
 
 (при необходимости используйте виртуальное окружение).
