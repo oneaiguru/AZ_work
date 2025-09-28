@@ -1,0 +1,5 @@
+{
+  "entries": [
+    "src/wasm/assembly/index.ts"
+  ]
+}

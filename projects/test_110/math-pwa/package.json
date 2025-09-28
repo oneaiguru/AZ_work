@@ -1,0 +1,35 @@
+{
+  "name": "interior-point-pwa",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "npm run decode:icons && vite",
+    "build": "npm run decode:icons && vite build",
+    "preview": "npm run decode:icons && vite preview",
+    "test": "vitest",
+    "lint": "vue-tsc --noEmit",
+    "decode:icons": "node scripts/decode-icons.mjs",
+    "asbuild": "npm run asbuild:optimized && npm run asbuild:untouched",
+    "asbuild:optimized": "asc src/wasm/assembly/index.ts -b src/wasm/build/optimized.wasm -t src/wasm/build/optimized.wat --runtime stub -O3 --shrinkLevel 1 --noAssert --exportTable",
+    "asbuild:untouched": "asc src/wasm/assembly/index.ts -b src/wasm/build/untouched.wasm -t src/wasm/build/untouched.wat --runtime incremental -O0 --shrinkLevel 0 --exportTable"
+  },
+  "dependencies": {
+    "@assemblyscript/loader": "^0.20.16",
+    "vue": "^3.4.21"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.28",
+    "@vitejs/plugin-vue": "^5.0.4",
+    "autoprefixer": "^10.4.17",
+    "assemblyscript": "^0.27.23",
+    "postcss": "^8.4.35",
+    "tailwindcss": "^3.4.1",
+    "tslib": "^2.6.2",
+    "typescript": "^5.3.3",
+    "vite": "^5.1.4",
+    "vite-plugin-pwa": "^0.17.5",
+    "vitest": "^1.4.0",
+    "vue-tsc": "^2.0.6"
+  }
+}
