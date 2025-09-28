@@ -1,0 +1,16 @@
+version: "3.8"
+
+services:
+  interior-point-pwa:
+    image: interior-point-pwa:latest
+    build: .
+    ports:
+      - "8080:80"
+    deploy:
+      replicas: 3
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+      update_config:
+        parallelism: 1
+        failure_action: rollback
