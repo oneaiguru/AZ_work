@@ -65,6 +65,25 @@ def test_import_with_tag(vault_tmp, tmp_path):
     assert (clippings / 'd.md').exists()
 
 
+def test_import_with_tag_limits_filename_length(vault_tmp, tmp_path):
+    clippings = tmp_path / 'clips_long'
+    clippings.mkdir()
+    long_stem = 'very_long_name_' + 'x' * 200
+    source = clippings / f'{long_stem}.markdown'
+    source.write_text('---\ntags:\n - job\n---\nbody', encoding='utf-8')
+
+    job_vault.import_with_tag(clippings, 'job')
+
+    drafts = job_vault.BASE_DIR / 'Positions' / '010_Drafts'
+    pos_dir = next(drafts.iterdir())
+    clips_dir = pos_dir / '060_Clippings'
+    files = list(clips_dir.iterdir())
+    assert len(files) == 1
+    copied = files[0]
+    assert copied.suffix == '.markdown'
+    assert len(str(copied)) <= job_vault.MAX_PATH_LEN
+
+
 def test_resolve_status_numeric_prefix():
     assert job_vault.resolve_status('012') == '012_Later'
     assert job_vault.resolve_status('later') == '012_Later'
