@@ -425,9 +425,17 @@ def _latest_entry(path: Path) -> Optional[Path]:  # pragma: no cover
         return None
     return max(items, key=lambda p: p.stat().st_mtime)
 
+def _allowed_name_length(dst_dir: Path) -> int:
+    """Return maximum number of characters allowed for a single path entry."""
+    return MAX_PATH_LEN - len(str(dst_dir)) - 1
+
+
 def _zip_dir(src: Path, dst_dir: Path, base_name: Optional[str] = None) -> Path:  # pragma: no cover
-    base = sanitize_name(base_name or src.name)
+    allowed = max(8, _allowed_name_length(dst_dir))
+    base = sanitize_name(base_name or src.name, max_len=min(MAX_NAME_LEN, allowed))
     stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    extra = len(stamp) + 4  # _ + .zip
+    base = base[: max(1, allowed - extra)]
     archive_base = dst_dir / f"{base}_{stamp}"
     archive_full = shutil.make_archive(str(archive_base), "zip", root_dir=str(src))
     return Path(archive_full)
@@ -445,22 +453,38 @@ def _copy_any(src: Path, dst_dir: Path) -> Path:  # pragma: no cover
     if src.is_dir() and is_subpath(dst_dir, src):
         return _zip_dir(src, dst_dir)
 
+    allowed = _allowed_name_length(dst_dir)
+    if allowed <= 0:
+        raise OSError("Destination path is too deep; cannot fit name within limit")
+
     if src.is_dir():
-        dest_name = sanitize_name(src.name)
-        target = dst_dir / dest_name
+        base_name = sanitize_name(src.name, max_len=min(MAX_NAME_LEN, allowed))
+        base_name = base_name[:allowed] or "untitled"
+        target = dst_dir / base_name
         if target.exists():
             stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            target = dst_dir / f"{dest_name}_{stamp}"
+            trimmed = base_name[: max(1, allowed - len(stamp) - 1)]
+            target = dst_dir / f"{trimmed}_{stamp}"
         try:
             shutil.copytree(src, target)
             return target
         except OSError:
-            return _zip_dir(src, dst_dir, base_name=dest_name)
+            return _zip_dir(src, dst_dir, base_name=base_name)
     else:
-        target = dst_dir / sanitize_name(src.name)
+        suffix = src.suffix
+        allowed_stem = max(1, min(MAX_NAME_LEN, allowed - len(suffix)))
+        stem = sanitize_name(src.stem, max_len=allowed_stem)
+        stem = stem[:allowed_stem] or "untitled"
+        target = dst_dir / f"{stem}{suffix}"
         if target.exists():
             stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            target = dst_dir / f"{target.stem}_{stamp}{target.suffix}"
+            allowed_with_stamp = max(1, allowed - len(suffix) - len(stamp) - 1)
+            stem = sanitize_name(src.stem, max_len=allowed_with_stamp)[:allowed_with_stamp] or "untitled"
+            target = dst_dir / f"{stem}_{stamp}{suffix}"
+        if len(str(target)) > MAX_PATH_LEN:
+            allowed_stem = max(1, allowed - len(suffix))
+            stem = stem[:allowed_stem]
+            target = dst_dir / f"{stem}{suffix}"
         shutil.copy2(src, target)
         return target
 
