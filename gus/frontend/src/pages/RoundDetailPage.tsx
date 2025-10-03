@@ -182,26 +182,45 @@ export function RoundDetailPage() {
       return;
     }
 
-    if (roundQuery.data.status === 'cooldown') {
-      const timeUntilStart = dayjs(roundQuery.data.startTime).diff(dayjs(), 'millisecond');
-      if (timeUntilStart <= 0) {
-        queryClient.setQueryData<RoundDetails>(['round', id], (prev) =>
-          prev && prev.status !== 'active' ? { ...prev, status: 'active' } : prev
-        );
-        queryClient.invalidateQueries({ queryKey: ['round', id] });
-      }
+    if (roundQuery.data.status === 'finished') {
       return;
     }
 
-    if (roundQuery.data.status === 'active') {
-      const timeUntilEnd = dayjs(roundQuery.data.endTime).diff(dayjs(), 'millisecond');
-      if (timeUntilEnd <= 0) {
-        queryClient.setQueryData<RoundDetails>(['round', id], (prev) =>
-          prev && prev.status !== 'finished' ? { ...prev, status: 'finished' } : prev
-        );
+    const promoteStatus = () => {
+      let shouldInvalidate = false;
+      const now = dayjs();
+
+      queryClient.setQueryData<RoundDetails>(['round', id], (prev) => {
+        if (!prev) {
+          return prev;
+        }
+
+        if (prev.status === 'cooldown') {
+          const timeUntilStart = dayjs(prev.startTime).diff(now, 'millisecond');
+          if (timeUntilStart <= 0) {
+            shouldInvalidate = true;
+            return { ...prev, status: 'active' };
+          }
+        } else if (prev.status === 'active') {
+          const timeUntilEnd = dayjs(prev.endTime).diff(now, 'millisecond');
+          if (timeUntilEnd <= 0) {
+            shouldInvalidate = true;
+            return { ...prev, status: 'finished' };
+          }
+        }
+
+        return prev;
+      });
+
+      if (shouldInvalidate) {
         queryClient.invalidateQueries({ queryKey: ['round', id] });
       }
-    }
+    };
+
+    promoteStatus();
+    const interval = setInterval(promoteStatus, 500);
+
+    return () => clearInterval(interval);
   }, [roundQuery.data?.status, roundQuery.data?.startTime, roundQuery.data?.endTime, id, queryClient]);
 
   const statusBadge = useMemo(() => {
