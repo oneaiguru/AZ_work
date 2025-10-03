@@ -1,0 +1,278 @@
+:root {
+  font-family: 'Jost', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  color: #fff;
+  background: #1a1026;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: radial-gradient(circle at top left, #ff7ce6 0%, #6320ee 40%, #0b1026 100%);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+.app-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(135deg, rgba(255, 92, 135, 0.9), rgba(99, 32, 238, 0.8));
+  backdrop-filter: blur(16px);
+}
+
+.app-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 24px 48px;
+  background: rgba(12, 13, 38, 0.35);
+  backdrop-filter: blur(16px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.25);
+}
+
+.app-logo {
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin: 0;
+}
+
+.app-profile {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.app-profile-label {
+  margin: 0;
+  opacity: 0.7;
+  font-size: 14px;
+}
+
+.app-profile-name {
+  margin: 2px 0 0 0;
+  font-weight: 600;
+  font-size: 18px;
+}
+
+.app-main {
+  flex: 1;
+  width: min(960px, 100%);
+  margin: 0 auto;
+  padding: 48px 24px 96px;
+}
+
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 24px;
+}
+
+.card {
+  background: rgba(12, 13, 38, 0.5);
+  border-radius: 24px;
+  padding: 28px;
+  box-shadow: 0 20px 40px rgba(6, 7, 20, 0.5);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 26px 60px rgba(6, 7, 20, 0.55);
+}
+
+.card-status {
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 14px;
+  letter-spacing: 0.2em;
+  opacity: 0.85;
+}
+
+.card-title {
+  font-size: 24px;
+  margin: 12px 0 8px 0;
+}
+
+.card-time {
+  margin: 6px 0;
+  font-size: 14px;
+  opacity: 0.8;
+}
+
+.button {
+  border: none;
+  border-radius: 999px;
+  padding: 12px 28px;
+  font-weight: 600;
+  font-size: 16px;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  background: linear-gradient(135deg, #ffe66b, #ff7ce6);
+  color: #1a1026;
+  box-shadow: 0 12px 24px rgba(255, 124, 230, 0.35);
+}
+
+.button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 16px 30px rgba(255, 124, 230, 0.4);
+}
+
+.button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.button-outline {
+  background: transparent;
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  box-shadow: none;
+}
+
+.button-outline:hover {
+  border-color: #fff;
+}
+
+.text-field {
+  width: 100%;
+  padding: 14px 18px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: rgba(12, 13, 38, 0.55);
+  color: #fff;
+  font-size: 16px;
+  margin-top: 8px;
+}
+
+.text-field:focus {
+  outline: none;
+  border-color: rgba(255, 230, 107, 0.9);
+  box-shadow: 0 0 0 4px rgba(255, 230, 107, 0.25);
+}
+
+.form-card {
+  max-width: 400px;
+  margin: 120px auto;
+  padding: 40px;
+  background: rgba(12, 13, 38, 0.75);
+  border-radius: 28px;
+  box-shadow: 0 30px 60px rgba(6, 7, 20, 0.6);
+}
+
+.form-card h2 {
+  margin-top: 0;
+  margin-bottom: 24px;
+  font-size: 28px;
+}
+
+.form-card label {
+  display: block;
+  margin-bottom: 24px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+}
+
+.form-card .button {
+  margin-top: 12px;
+  width: 100%;
+}
+
+.error-text {
+  color: #ffb3c6;
+  margin-top: 12px;
+  font-size: 14px;
+}
+
+.round-layout {
+  display: grid;
+  gap: 32px;
+}
+
+.gus-panel {
+  background: rgba(12, 13, 38, 0.6);
+  border-radius: 32px;
+  padding: 32px;
+  display: grid;
+  gap: 24px;
+  justify-items: center;
+  text-align: center;
+  position: relative;
+}
+
+.gus-art {
+  width: 220px;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 30%, rgba(255, 230, 107, 0.9), rgba(255, 124, 230, 0.4));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 58px;
+  box-shadow: 0 20px 40px rgba(255, 124, 230, 0.35);
+}
+
+.timer-badge {
+  padding: 8px 18px;
+  border-radius: 999px;
+  background: rgba(255, 230, 107, 0.2);
+  color: #ffe66b;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  font-size: 12px;
+}
+
+.score-label {
+  font-size: 18px;
+  opacity: 0.85;
+  margin: 0;
+}
+
+.score-value {
+  font-size: 48px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.stats-card {
+  background: rgba(12, 13, 38, 0.55);
+  border-radius: 24px;
+  padding: 24px;
+  display: grid;
+  gap: 12px;
+}
+
+.link-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #ffe66b;
+  text-decoration: none;
+  font-weight: 600;
+  transition: opacity 0.2s ease;
+}
+
+.link-button:hover {
+  opacity: 0.8;
+}
+
+@media (max-width: 720px) {
+  .app-header {
+    flex-direction: column;
+    gap: 16px;
+    text-align: center;
+  }
+
+  .app-main {
+    padding: 32px 16px 64px;
+  }
+
+  .form-card {
+    margin: 80px 16px;
+  }
+}
