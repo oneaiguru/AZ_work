@@ -318,7 +318,7 @@ export function RoundDetailPage() {
       {roundQuery.isLoading && <p>{t.roundDetail.loading}</p>}
       {roundQuery.data && (
         <div className="round-layout">
-          <Link to="/rounds" className="link-button">
+          <Link to="/rounds" className="link-button round-detail-back">
             {t.roundDetail.goBack}
           </Link>
           <section className="gus-panel">
@@ -340,11 +340,11 @@ export function RoundDetailPage() {
             <div>
               <p className="score-label">{t.roundDetail.myScoreLabel}</p>
               <p className="score-value">{roundQuery.data.myScore}</p>
-              <p style={{ opacity: 0.6, margin: '8px 0 0 0' }}>
+              <p className="score-meta">
                 {t.roundDetail.taps(roundQuery.data.myTaps)}
               </p>
               {user?.role === 'nikita' && (
-                <p style={{ opacity: 0.7, fontSize: 14 }}>
+                <p className="nikita-warning">
                   {t.roundDetail.nikitaWarning}
                 </p>
               )}
@@ -353,18 +353,18 @@ export function RoundDetailPage() {
 
           {roundQuery.data.status === 'finished' && (
             <section className="stats-card">
-              <h3 style={{ margin: 0, fontSize: 24 }}>{t.roundDetail.stats.heading}</h3>
-              <p style={{ margin: 0 }}>{t.roundDetail.stats.totalScore(roundQuery.data.totalScore)}</p>
+              <h3 className="stats-heading">{t.roundDetail.stats.heading}</h3>
+              <p className="stats-text">{t.roundDetail.stats.totalScore(roundQuery.data.totalScore)}</p>
               {roundQuery.data.winner ? (
-                <p style={{ margin: 0 }}>
+                <p className="stats-text">
                   {t.roundDetail.stats.winnerPrefix}{' '}
                   <strong>{roundQuery.data.winner.username}</strong>{' '}
                   {t.roundDetail.stats.winnerSuffix(roundQuery.data.winner.score)}
                 </p>
               ) : (
-                <p style={{ margin: 0 }}>{t.roundDetail.stats.noWinner}</p>
+                <p className="stats-text">{t.roundDetail.stats.noWinner}</p>
               )}
-              <p style={{ margin: 0 }}>{t.roundDetail.stats.yourResult(roundQuery.data.myScore)}</p>
+              <p className="stats-text">{t.roundDetail.stats.yourResult(roundQuery.data.myScore)}</p>
             </section>
           )}
           {(errorKey || serverError) && (
