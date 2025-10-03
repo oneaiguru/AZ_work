@@ -1,0 +1,35 @@
+services:
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: guss
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    environment:
+      DATABASE_URL: postgres://postgres:postgres@db:5432/guss
+      JWT_SECRET: supersecretjwtkeysuper
+      ROUND_DURATION: 60
+      COOLDOWN_DURATION: 30
+      PORT: 3000
+    depends_on:
+      - db
+    ports:
+      - '3000:3000'
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    depends_on:
+      - backend
+    ports:
+      - '5173:4173'
+volumes:
+  postgres_data:

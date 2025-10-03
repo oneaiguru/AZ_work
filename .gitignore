@@ -1,6 +1,9 @@
 # Node dependencies
 node_modules/
 
+# TypeScript build artefacts
+**/*.tsbuildinfo
+
 # Build outputs
 build/
 */build/
@@ -22,3 +25,7 @@ projects/tabi/local.properties
 
 # Gradle wrapper binary
 projects/tabi/gradle/wrapper/gradle-wrapper.jar
+
+# Generated tooling artefacts
+gus/frontend/vite.config.js
+gus/frontend/vite.config.d.ts
