@@ -78,6 +78,8 @@ cd gus
 docker compose up --build
 ```
 
+- Перед запуском убедитесь, что Docker Engine (Docker Desktop или демон Docker) запущен, иначе команды `docker compose` завершатся с ошибкой подключения.
+
 - `http://localhost:5173` — SPA.
 - `http://localhost:3000` — Fastify API.
 - База данных доступна по `localhost:5432` (логин/пароль postgres/postgres).
