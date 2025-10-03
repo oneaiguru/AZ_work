@@ -18,7 +18,7 @@ export class RoundScore {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
-  @ManyToOne(() => User, (user) => user.scores, { eager: true })
+  @ManyToOne(() => User, (user) => user.scores)
   @JoinColumn({ name: 'user_id' })
   user!: Relation<User>;
 

@@ -15,24 +15,30 @@ export class ScoreService {
   async registerTap(round: Round, user: User): Promise<TapResult> {
     const manager = this.queryRunner.manager;
 
-    let roundScore = await manager.findOne(RoundScore, {
-      where: { round: { id: round.id }, user: { id: user.id } },
-      lock: { mode: 'pessimistic_write' }
-    });
+    const scoreRepository = manager.getRepository(RoundScore);
+
+    const findLockedScore = () =>
+      scoreRepository
+        .createQueryBuilder('score')
+        .setLock('pessimistic_write')
+        .where('score.round_id = :roundId', { roundId: round.id })
+        .andWhere('score.user_id = :userId', { userId: user.id })
+        .getOne();
+
+    let roundScore = await findLockedScore();
 
     if (!roundScore) {
-      roundScore = manager.create(RoundScore, {
+      roundScore = scoreRepository.create({
         round,
         user,
         taps: 0,
         score: 0
       });
-      roundScore = await manager.save(roundScore);
-      // lock after creation to prevent race during first tap
-      roundScore = await manager.findOneOrFail(RoundScore, {
-        where: { id: roundScore.id },
-        lock: { mode: 'pessimistic_write' }
-      });
+      await scoreRepository.save(roundScore);
+      roundScore = await findLockedScore();
+      if (!roundScore) {
+        throw new Error('Не удалось зафиксировать счёт игрока');
+      }
     }
 
     const nextTapCount = roundScore.taps + 1;
