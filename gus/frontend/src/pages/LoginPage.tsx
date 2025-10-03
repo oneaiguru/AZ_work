@@ -26,10 +26,10 @@ export function LoginPage() {
 
   return (
     <div className="app-shell">
-      <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '24px 32px' }}>
+      <div className="top-bar">
         <LanguageSwitcher />
       </div>
-      <main className="app-main">
+      <main className="app-main login-layout">
         <form className="form-card" onSubmit={handleSubmit}>
           <h2>{t.login.title}</h2>
           <label>

@@ -52,10 +52,10 @@ export function RoundsPage() {
 
   return (
     <AppLayout>
-      <div className="rounds-header" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 32 }}>
-        <div>
-          <h2 style={{ margin: 0, fontSize: 32 }}>{t.rounds.heading}</h2>
-          <p style={{ marginTop: 8, opacity: 0.8 }}>{t.rounds.subtitle}</p>
+      <div className="rounds-header">
+        <div className="rounds-heading-group">
+          <h2 className="rounds-heading">{t.rounds.heading}</h2>
+          <p className="rounds-subtitle">{t.rounds.subtitle}</p>
         </div>
         {user?.role === 'admin' && (
           <button className="button" onClick={handleCreateRound}>
@@ -80,7 +80,7 @@ export function RoundsPage() {
               <p className="card-time">
                 {t.rounds.endLabel}: {new Date(round.endTime).toLocaleString(language === 'ru' ? 'ru-RU' : 'en-US')}
               </p>
-              <Link to={`/rounds/${round.id}`} className="link-button" style={{ marginTop: 16 }}>
+              <Link to={`/rounds/${round.id}`} className="link-button">
                 {t.rounds.view}
               </Link>
             </article>
@@ -88,7 +88,7 @@ export function RoundsPage() {
           {roundsQuery.data?.length === 0 && <p>{t.rounds.empty}</p>}
         </div>
       )}
-      {creationError && <p className="error-text" style={{ marginTop: 24 }}>{t.rounds.errors.create}</p>}
+      {creationError && <p className="error-text creation-error">{t.rounds.errors.create}</p>}
     </AppLayout>
   );
 }
