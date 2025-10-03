@@ -119,7 +119,7 @@ export function RoundDetailPage() {
   }, [roundQuery.data?.status]);
 
   const handleTap = () => {
-    if (!tapMutation.isLoading && roundQuery.data?.status === 'active') {
+    if (!tapMutation.isPending && roundQuery.data?.status === 'active') {
       tapMutation.mutate();
     }
   };
@@ -150,7 +150,11 @@ export function RoundDetailPage() {
             <div className="gus-art" role="button" aria-pressed={false}>
               🦆
             </div>
-            <button className="button" onClick={handleTap} disabled={roundQuery.data.status !== 'active'}>
+            <button
+              className="button"
+              onClick={handleTap}
+              disabled={roundQuery.data.status !== 'active' || tapMutation.isPending}
+            >
               {roundQuery.data.status === 'active' ? 'Кликнуть гуся' : 'Ждем сигнал'}
             </button>
             <div>
