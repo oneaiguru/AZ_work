@@ -177,6 +177,33 @@ export function RoundDetailPage() {
     return () => clearTimeout(timeout);
   }, [roundQuery.data?.status, roundQuery.data?.startTime, roundQuery.data?.endTime, id, queryClient]);
 
+  useEffect(() => {
+    if (!roundQuery.data) {
+      return;
+    }
+
+    if (roundQuery.data.status === 'cooldown') {
+      const timeUntilStart = dayjs(roundQuery.data.startTime).diff(dayjs(), 'millisecond');
+      if (timeUntilStart <= 0) {
+        queryClient.setQueryData<RoundDetails>(['round', id], (prev) =>
+          prev && prev.status !== 'active' ? { ...prev, status: 'active' } : prev
+        );
+        queryClient.invalidateQueries({ queryKey: ['round', id] });
+      }
+      return;
+    }
+
+    if (roundQuery.data.status === 'active') {
+      const timeUntilEnd = dayjs(roundQuery.data.endTime).diff(dayjs(), 'millisecond');
+      if (timeUntilEnd <= 0) {
+        queryClient.setQueryData<RoundDetails>(['round', id], (prev) =>
+          prev && prev.status !== 'finished' ? { ...prev, status: 'finished' } : prev
+        );
+        queryClient.invalidateQueries({ queryKey: ['round', id] });
+      }
+    }
+  }, [roundQuery.data?.status, roundQuery.data?.startTime, roundQuery.data?.endTime, id, queryClient]);
+
   const statusBadge = useMemo(() => {
     switch (roundQuery.data?.status) {
       case 'cooldown':
