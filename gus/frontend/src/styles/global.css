@@ -46,6 +46,28 @@ body {
   gap: 20px;
 }
 
+.language-switcher {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+}
+
+.language-select {
+  background: rgba(12, 13, 38, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  border-radius: 12px;
+  color: #fff;
+  padding: 6px 12px;
+  font-size: 14px;
+}
+
+.language-select:focus {
+  outline: none;
+  border-color: rgba(255, 230, 107, 0.9);
+  box-shadow: 0 0 0 3px rgba(255, 230, 107, 0.25);
+}
+
 .app-profile-label {
   margin: 0;
   opacity: 0.7;
