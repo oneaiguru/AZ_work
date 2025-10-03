@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useParams, Link, Navigate } from 'react-router-dom';
 import dayjs from 'dayjs';
-import api from '../api/client';
+import api, { API_BASE_URL } from '../api/client';
 import { AppLayout } from '../components/AppLayout';
 import { useAuth } from '../context/AuthContext';
 
@@ -22,9 +22,12 @@ interface RoundDetails {
 export function RoundDetailPage() {
   const { id } = useParams<{ id: string }>();
   const queryClient = useQueryClient();
-  const { user, initializing } = useAuth();
+  const { user, token, initializing } = useAuth();
   const [remaining, setRemaining] = useState('--:--');
   const [error, setError] = useState<string | null>(null);
+  const [isTapping, setIsTapping] = useState(false);
+  const [socketReady, setSocketReady] = useState(false);
+  const socketRef = useRef<WebSocket | null>(null);
 
   const roundQuery = useQuery({
     queryKey: ['round', id],
@@ -36,31 +39,95 @@ export function RoundDetailPage() {
     enabled: Boolean(id)
   });
 
-  const tapMutation = useMutation({
-    mutationFn: async () => {
-      if (!id) {
-        throw new Error('round id missing');
-      }
-      const response = await api.post(`/rounds/${id}/tap`);
-      return response.data as { myScore: number; totalScore: number; taps: number };
-    },
-    onSuccess: (data) => {
-      setError(null);
-      queryClient.setQueryData<RoundDetails>(['round', id], (prev) =>
-        prev
-          ? {
-              ...prev,
-              myScore: data.myScore,
-              myTaps: data.taps,
-              totalScore: data.totalScore
-            }
-          : prev
-      );
-    },
-    onError: () => {
-      setError('Гусь сейчас не принимает клики. Возможно, раунд уже закончился.');
+  useEffect(() => {
+    if (!id || !token) {
+      return;
     }
-  });
+
+    const url = new URL(API_BASE_URL);
+    url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
+    url.pathname = '/ws';
+    url.searchParams.set('token', token);
+
+    const socket = new WebSocket(url.toString());
+    socketRef.current = socket;
+    setSocketReady(false);
+
+    const handleOpen = () => {
+      setSocketReady(true);
+      socket.send(JSON.stringify({ type: 'subscribe', roundId: id }));
+    };
+
+    const handleMessage = (event: MessageEvent<string>) => {
+      try {
+        const data = JSON.parse(event.data) as
+          | { type: 'subscribed'; roundId: string }
+          | { type: 'tap:result'; roundId: string; myScore: number; totalScore: number; taps: number }
+          | { type: 'round:update'; roundId: string; totalScore: number }
+          | { type: 'error'; message: string };
+
+        if ('roundId' in data && data.roundId && data.roundId !== id) {
+          return;
+        }
+
+        switch (data.type) {
+          case 'tap:result':
+            setIsTapping(false);
+            setError(null);
+            queryClient.setQueryData<RoundDetails>(['round', id], (prev) =>
+              prev
+                ? {
+                    ...prev,
+                    myScore: data.myScore,
+                    myTaps: data.taps,
+                    totalScore: data.totalScore
+                  }
+                : prev
+            );
+            break;
+          case 'round:update':
+            queryClient.setQueryData<RoundDetails>(['round', id], (prev) =>
+              prev
+                ? {
+                    ...prev,
+                    totalScore: data.totalScore
+                  }
+                : prev
+            );
+            break;
+          case 'error':
+            setIsTapping(false);
+            setError(data.message);
+            break;
+          default:
+            break;
+        }
+      } catch (parseError) {
+        console.error('Failed to parse websocket message', parseError);
+      }
+    };
+
+    const handleClose = () => {
+      setSocketReady(false);
+      setIsTapping(false);
+    };
+
+    socket.addEventListener('open', handleOpen);
+    socket.addEventListener('message', handleMessage);
+    socket.addEventListener('close', handleClose);
+    socket.addEventListener('error', handleClose);
+
+    return () => {
+      socket.removeEventListener('open', handleOpen);
+      socket.removeEventListener('message', handleMessage);
+      socket.removeEventListener('close', handleClose);
+      socket.removeEventListener('error', handleClose);
+      setSocketReady(false);
+      setIsTapping(false);
+      socketRef.current = null;
+      socket.close();
+    };
+  }, [API_BASE_URL, id, queryClient, token]);
 
   useEffect(() => {
     if (!roundQuery.data) return;
@@ -110,6 +177,33 @@ export function RoundDetailPage() {
     return () => clearTimeout(timeout);
   }, [roundQuery.data?.status, roundQuery.data?.startTime, roundQuery.data?.endTime, id, queryClient]);
 
+  useEffect(() => {
+    if (!roundQuery.data) {
+      return;
+    }
+
+    if (roundQuery.data.status === 'cooldown') {
+      const timeUntilStart = dayjs(roundQuery.data.startTime).diff(dayjs(), 'millisecond');
+      if (timeUntilStart <= 0) {
+        queryClient.setQueryData<RoundDetails>(['round', id], (prev) =>
+          prev && prev.status !== 'active' ? { ...prev, status: 'active' } : prev
+        );
+        queryClient.invalidateQueries({ queryKey: ['round', id] });
+      }
+      return;
+    }
+
+    if (roundQuery.data.status === 'active') {
+      const timeUntilEnd = dayjs(roundQuery.data.endTime).diff(dayjs(), 'millisecond');
+      if (timeUntilEnd <= 0) {
+        queryClient.setQueryData<RoundDetails>(['round', id], (prev) =>
+          prev && prev.status !== 'finished' ? { ...prev, status: 'finished' } : prev
+        );
+        queryClient.invalidateQueries({ queryKey: ['round', id] });
+      }
+    }
+  }, [roundQuery.data?.status, roundQuery.data?.startTime, roundQuery.data?.endTime, id, queryClient]);
+
   const statusBadge = useMemo(() => {
     switch (roundQuery.data?.status) {
       case 'cooldown':
@@ -124,9 +218,23 @@ export function RoundDetailPage() {
   }, [roundQuery.data?.status]);
 
   const handleTap = () => {
-    if (!tapMutation.isPending && roundQuery.data?.status === 'active') {
-      tapMutation.mutate();
+    if (!id || roundQuery.data?.status !== 'active') {
+      return;
     }
+
+    const socket = socketRef.current;
+
+    if (!socket || socket.readyState !== WebSocket.OPEN) {
+      setError('Соединение с гусем потеряно. Попробуйте обновить страницу.');
+      return;
+    }
+
+    if (isTapping || !socketReady) {
+      return;
+    }
+
+    setIsTapping(true);
+    socket.send(JSON.stringify({ type: 'tap', roundId: id }));
   };
 
   if (initializing) {
@@ -158,9 +266,15 @@ export function RoundDetailPage() {
             <button
               className="button"
               onClick={handleTap}
-              disabled={roundQuery.data.status !== 'active' || tapMutation.isPending}
+              disabled={
+                roundQuery.data.status !== 'active' || isTapping || !socketReady
+              }
             >
-              {roundQuery.data.status === 'active' ? 'Кликнуть гуся' : 'Ждем сигнал'}
+              {roundQuery.data.status === 'active'
+                ? isTapping
+                  ? 'Отправляем клик...'
+                  : 'Кликнуть гуся'
+                : 'Ждем сигнал'}
             </button>
             <div>
               <p className="score-label">Оставшееся время</p>
