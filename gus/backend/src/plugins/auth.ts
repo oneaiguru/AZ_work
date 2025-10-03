@@ -1,4 +1,5 @@
 import { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
+import fastifyPlugin from 'fastify-plugin';
 import fastifyJwt from '@fastify/jwt';
 import fastifyCookie from '@fastify/cookie';
 import { env } from '../config/env.js';
@@ -27,7 +28,7 @@ declare module '@fastify/jwt' {
   }
 }
 
-export async function authPlugin(app: FastifyInstance) {
+export const authPlugin = fastifyPlugin(async (app: FastifyInstance) => {
   await app.register(fastifyCookie);
   await app.register(fastifyJwt, {
     secret: env.JWT_SECRET,
@@ -53,4 +54,4 @@ export async function authPlugin(app: FastifyInstance) {
       throw new Error('Forbidden');
     }
   });
-}
+});
