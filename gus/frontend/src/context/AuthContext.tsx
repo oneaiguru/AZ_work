@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import api from '../api/client';
+import api, { TOKEN_STORAGE_KEY, USER_STORAGE_KEY } from '../api/client';
 
 interface User {
   id: string;
@@ -10,6 +10,7 @@ interface User {
 
 interface AuthContextValue {
   user: User | null;
+  token: string | null;
   isAuthenticated: boolean;
   initializing: boolean;
   login: (username: string, password: string) => Promise<void>;
@@ -18,41 +19,53 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
-const TOKEN_KEY = 'guss_token';
-
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const [token, setToken] = useState<string | null>(null);
   const [initializing, setInitializing] = useState(true);
   const navigate = useNavigate();
   const location = useLocation();
 
   useEffect(() => {
-    const token = localStorage.getItem(TOKEN_KEY);
-    const storedUser = localStorage.getItem(`${TOKEN_KEY}_user`);
-    if (token && storedUser) {
-      setUser(JSON.parse(storedUser));
-      api.defaults.headers.common.Authorization = `Bearer ${token}`;
+    if (typeof window === 'undefined') {
+      setInitializing(false);
+      return;
+    }
+
+    const storedToken = sessionStorage.getItem(TOKEN_STORAGE_KEY);
+    const storedUser = sessionStorage.getItem(USER_STORAGE_KEY);
+
+    if (storedToken && storedUser) {
+      try {
+        setUser(JSON.parse(storedUser));
+        setToken(storedToken);
+      } catch (error) {
+        sessionStorage.removeItem(TOKEN_STORAGE_KEY);
+        sessionStorage.removeItem(USER_STORAGE_KEY);
+      }
     }
     setInitializing(false);
   }, []);
 
   const login = async (username: string, password: string) => {
     const response = await api.post('/login', { username, password });
-    const { token, user: authUser } = response.data;
+    const { token: tokenValue, user: authUser } = response.data;
 
-    localStorage.setItem(TOKEN_KEY, token);
-    localStorage.setItem(`${TOKEN_KEY}_user`, JSON.stringify(authUser));
-    api.defaults.headers.common.Authorization = `Bearer ${token}`;
+    sessionStorage.setItem(TOKEN_STORAGE_KEY, tokenValue);
+    sessionStorage.setItem(USER_STORAGE_KEY, JSON.stringify(authUser));
 
+    setToken(tokenValue);
     setUser(authUser);
     navigate('/rounds');
   };
 
   const logout = () => {
-    localStorage.removeItem(TOKEN_KEY);
-    localStorage.removeItem(`${TOKEN_KEY}_user`);
-    delete api.defaults.headers.common.Authorization;
+    if (typeof window !== 'undefined') {
+      sessionStorage.removeItem(TOKEN_STORAGE_KEY);
+      sessionStorage.removeItem(USER_STORAGE_KEY);
+    }
     setUser(null);
+    setToken(null);
     if (location.pathname !== '/login') {
       navigate('/login');
     }
@@ -61,12 +74,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const value = useMemo(
     () => ({
       user,
+      token,
       isAuthenticated: Boolean(user),
       initializing,
       login,
       logout
     }),
-    [user, initializing]
+    [user, token, initializing]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
