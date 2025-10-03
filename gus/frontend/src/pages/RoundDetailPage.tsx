@@ -64,10 +64,12 @@ export function RoundDetailPage() {
 
   useEffect(() => {
     if (!roundQuery.data) return;
-    const interval = setInterval(() => {
+
+    const start = dayjs(roundQuery.data.startTime);
+    const end = dayjs(roundQuery.data.endTime);
+
+    const updateRemaining = () => {
       const now = dayjs();
-      const start = dayjs(roundQuery.data.startTime);
-      const end = dayjs(roundQuery.data.endTime);
 
       if (roundQuery.data.status === 'cooldown') {
         const diff = start.diff(now, 'second');
@@ -78,10 +80,13 @@ export function RoundDetailPage() {
       } else {
         setRemaining('00:00');
       }
-    }, 1000);
+    };
+
+    updateRemaining();
+    const interval = setInterval(updateRemaining, 1000);
 
     return () => clearInterval(interval);
-  }, [roundQuery.data]);
+  }, [roundQuery.data?.startTime, roundQuery.data?.endTime, roundQuery.data?.status]);
 
   useEffect(() => {
     if (!roundQuery.data) return;
@@ -103,7 +108,7 @@ export function RoundDetailPage() {
     }, milliseconds + 100);
 
     return () => clearTimeout(timeout);
-  }, [roundQuery.data, id, queryClient]);
+  }, [roundQuery.data?.status, roundQuery.data?.startTime, roundQuery.data?.endTime, id, queryClient]);
 
   const statusBadge = useMemo(() => {
     switch (roundQuery.data?.status) {
