@@ -1,13 +1,37 @@
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
+import { setTimeout as delay } from 'timers/promises';
 import { AppDataSource } from './config/data-source.js';
 import { env } from './config/env.js';
 import { authPlugin } from './plugins/auth.js';
 import { authRoutes } from './routes/auth.js';
 import { roundRoutes } from './routes/rounds.js';
 
+async function initializeDataSourceWithRetry(retries = 5, delayMs = 2000) {
+  for (let attempt = 1; attempt <= retries; attempt += 1) {
+    try {
+      if (!AppDataSource.isInitialized) {
+        await AppDataSource.initialize();
+      }
+      return;
+    } catch (error) {
+      const isLastAttempt = attempt === retries;
+      console.error(
+        `Failed to initialize data source (attempt ${attempt}/${retries})`,
+        error
+      );
+
+      if (isLastAttempt) {
+        throw error;
+      }
+
+      await delay(delayMs);
+    }
+  }
+}
+
 async function bootstrap() {
-  await AppDataSource.initialize();
+  await initializeDataSourceWithRetry();
 
   const app = Fastify({ logger: true });
 
