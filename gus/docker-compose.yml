@@ -9,7 +9,8 @@ services:
       - '5432:5432'
     volumes:
       - postgres_data:/var/lib/postgresql/data
-  backend:
+
+  backend-1:
     build:
       context: ./backend
       dockerfile: Dockerfile
@@ -21,15 +22,52 @@ services:
       PORT: 3000
     depends_on:
       - db
+
+  backend-2:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    environment:
+      DATABASE_URL: postgres://postgres:postgres@db:5432/guss
+      JWT_SECRET: supersecretjwtkeysuper
+      ROUND_DURATION: 60
+      COOLDOWN_DURATION: 30
+      PORT: 3000
+    depends_on:
+      - db
+
+  backend-3:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    environment:
+      DATABASE_URL: postgres://postgres:postgres@db:5432/guss
+      JWT_SECRET: supersecretjwtkeysuper
+      ROUND_DURATION: 60
+      COOLDOWN_DURATION: 30
+      PORT: 3000
+    depends_on:
+      - db
+
+  nginx:
+    image: nginx:1.25-alpine
+    depends_on:
+      - backend-1
+      - backend-2
+      - backend-3
     ports:
       - '3000:3000'
+    volumes:
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
     depends_on:
-      - backend
+      - nginx
     ports:
       - '5173:5173'
+
 volumes:
   postgres_data:

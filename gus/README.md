@@ -10,7 +10,7 @@
 - **Особый режим для Никиты**: пользователь `Никита` или `nikita` может нажимать на гуся, но всегда остаётся с нулём очков.
 - **Яркий молодёжный UI**: неоновые градиенты, крупная типографика и акцентные кнопки.
 - **Консистентность данных**: все операции по тапу выполняются в транзакции PostgreSQL, используются блокировки строк.
-- **Docker-compose** для быстрого запуска всего стека (PostgreSQL + backend + frontend).
+- **Docker-compose** для быстрого запуска всего стека (PostgreSQL + 3 экземпляра backend за nginx + frontend).
 
 ## Архитектура
 
@@ -27,6 +27,7 @@
    │  ├─ src/components
    │  └─ src/styles
    ├─ docker-compose.yml
+   ├─ nginx           # конфигурация балансировщика нагрузки
    ├─ .github/workflows
    └─ README.md (вы тут)
 ```
@@ -82,7 +83,7 @@ docker compose up --build
 - Перед запуском убедитесь, что Docker Engine (Docker Desktop или демон Docker) запущен, иначе команды `docker compose` завершатся с ошибкой подключения.
 
 - `http://localhost:5173` — SPA.
-- `http://localhost:3000` — Fastify API.
+- `http://localhost:3000` — Nginx, распределяющий запросы по трём контейнерам backend.
 - База данных доступна по `localhost:5432` (логин/пароль postgres/postgres).
 
 ### Тестовые аккаунты
