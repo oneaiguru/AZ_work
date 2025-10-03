@@ -171,6 +171,18 @@ body {
   font-size: 28px;
 }
 
+.form-card label {
+  display: block;
+  margin-bottom: 24px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+}
+
+.form-card .button {
+  margin-top: 12px;
+  width: 100%;
+}
+
 .error-text {
   color: #ffb3c6;
   margin-top: 12px;

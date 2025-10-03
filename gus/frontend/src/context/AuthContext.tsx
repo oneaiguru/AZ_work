@@ -1,6 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import axios from 'axios';
 import api from '../api/client';
 
 interface User {
@@ -32,19 +31,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const storedUser = localStorage.getItem(`${TOKEN_KEY}_user`);
     if (token && storedUser) {
       setUser(JSON.parse(storedUser));
-      axios.defaults.headers.common.Authorization = `Bearer ${token}`;
       api.defaults.headers.common.Authorization = `Bearer ${token}`;
     }
     setInitializing(false);
   }, []);
 
   const login = async (username: string, password: string) => {
-    const response = await axios.post('/api/login', { username, password }, { withCredentials: true });
+    const response = await api.post('/login', { username, password });
     const { token, user: authUser } = response.data;
 
     localStorage.setItem(TOKEN_KEY, token);
     localStorage.setItem(`${TOKEN_KEY}_user`, JSON.stringify(authUser));
-    axios.defaults.headers.common.Authorization = `Bearer ${token}`;
     api.defaults.headers.common.Authorization = `Bearer ${token}`;
 
     setUser(authUser);
@@ -54,7 +51,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = () => {
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(`${TOKEN_KEY}_user`);
-    delete axios.defaults.headers.common.Authorization;
     delete api.defaults.headers.common.Authorization;
     setUser(null);
     if (location.pathname !== '/login') {

@@ -1,7 +1,24 @@
 import axios from 'axios';
 
+const envBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim();
+
+let resolvedBaseUrl: string;
+
+if (envBaseUrl && envBaseUrl.length > 0) {
+  resolvedBaseUrl = envBaseUrl;
+} else if (typeof window !== 'undefined') {
+  const { protocol, hostname, port, origin } = window.location;
+  if (port === '5173' || port === '4173') {
+    resolvedBaseUrl = `${protocol}//${hostname}:3000`;
+  } else {
+    resolvedBaseUrl = origin;
+  }
+} else {
+  resolvedBaseUrl = 'http://localhost:3000';
+}
+
 const api = axios.create({
-  baseURL: '/api',
+  baseURL: resolvedBaseUrl,
   withCredentials: true
 });
 

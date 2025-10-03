@@ -33,6 +33,7 @@ export function LoginPage() {
               value={username}
               onChange={(event) => setUsername(event.target.value)}
               placeholder="Например, GooseSlayer"
+              autoComplete="username"
               required
             />
           </label>
@@ -44,6 +45,7 @@ export function LoginPage() {
               value={password}
               onChange={(event) => setPassword(event.target.value)}
               placeholder="Секретная фраза"
+              autoComplete="current-password"
               required
             />
           </label>
