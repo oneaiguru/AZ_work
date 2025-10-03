@@ -29,7 +29,9 @@ export function RoundDetailPage() {
   const [serverError, setServerError] = useState<string | null>(null);
   const [isTapping, setIsTapping] = useState(false);
   const [socketReady, setSocketReady] = useState(false);
+  const [reconnectSignal, setReconnectSignal] = useState(0);
   const socketRef = useRef<WebSocket | null>(null);
+  const reconnectTimeoutRef = useRef<number | null>(null);
   const t = useTranslations();
 
   const roundQuery = useQuery({
@@ -47,14 +49,21 @@ export function RoundDetailPage() {
       return;
     }
 
-    const url = new URL(API_BASE_URL);
-    url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
-    url.pathname = '/ws';
-    url.searchParams.set('token', token);
+    const base = new URL(API_BASE_URL);
+    const wsUrl = new URL(API_BASE_URL);
+    const basePath = base.pathname.endsWith('/') ? base.pathname.slice(0, -1) : base.pathname;
+    const wsPath = `${basePath}/ws`.replace(/\/{2,}/g, '/');
+    wsUrl.protocol = base.protocol === 'https:' ? 'wss:' : 'ws:';
+    wsUrl.pathname = wsPath.length > 0 ? wsPath : '/ws';
+    wsUrl.search = '';
+    wsUrl.hash = '';
+    wsUrl.searchParams.set('token', token);
 
-    const socket = new WebSocket(url.toString());
+    const socket = new WebSocket(wsUrl.toString());
     socketRef.current = socket;
     setSocketReady(false);
+
+    let active = true;
 
     const handleOpen = () => {
       setSocketReady(true);
@@ -76,6 +85,11 @@ export function RoundDetailPage() {
         }
 
         switch (data.type) {
+          case 'subscribed':
+            setSocketReady(true);
+            setErrorKey(null);
+            setServerError(null);
+            break;
           case 'tap:result':
             setIsTapping(false);
             setErrorKey(null);
@@ -120,6 +134,14 @@ export function RoundDetailPage() {
         setIsTapping(false);
         setErrorKey('connectionLost');
         setServerError(null);
+        if (active) {
+          if (reconnectTimeoutRef.current) {
+            window.clearTimeout(reconnectTimeoutRef.current);
+          }
+          reconnectTimeoutRef.current = window.setTimeout(() => {
+            setReconnectSignal((value) => value + 1);
+          }, 1000);
+        }
       }
     };
 
@@ -129,6 +151,7 @@ export function RoundDetailPage() {
     socket.addEventListener('error', handleClose);
 
     return () => {
+      active = false;
       socket.removeEventListener('open', handleOpen);
       socket.removeEventListener('message', handleMessage);
       socket.removeEventListener('close', handleClose);
@@ -136,9 +159,13 @@ export function RoundDetailPage() {
       setSocketReady(false);
       setIsTapping(false);
       socketRef.current = null;
+      if (reconnectTimeoutRef.current) {
+        window.clearTimeout(reconnectTimeoutRef.current);
+        reconnectTimeoutRef.current = null;
+      }
       socket.close();
     };
-  }, [API_BASE_URL, id, queryClient, token]);
+  }, [API_BASE_URL, id, queryClient, token, reconnectSignal]);
 
   useEffect(() => {
     if (!roundQuery.data) return;
