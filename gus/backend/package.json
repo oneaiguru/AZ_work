@@ -13,7 +13,7 @@
   "dependencies": {
     "@fastify/cookie": "^9.1.0",
     "@fastify/cors": "^8.3.1",
-    "@fastify/jwt": "^10.0.0",
+    "@fastify/jwt": "^8.0.1",
     "bcryptjs": "^2.4.3",
     "dotenv": "^16.4.5",
     "fastify": "^4.26.2",
