@@ -1,7 +1,6 @@
 import { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import fastifyPlugin from 'fastify-plugin';
 import fastifyJwt from '@fastify/jwt';
-import fastifyCookie from '@fastify/cookie';
 import { env } from '../config/env.js';
 
 export interface AuthTokenPayload {
@@ -29,13 +28,8 @@ declare module '@fastify/jwt' {
 }
 
 export const authPlugin = fastifyPlugin(async (app: FastifyInstance) => {
-  await app.register(fastifyCookie);
   await app.register(fastifyJwt, {
-    secret: env.JWT_SECRET,
-    cookie: {
-      cookieName: 'guss_token',
-      signed: false
-    }
+    secret: env.JWT_SECRET
   });
 
   app.decorate('authenticate', async (request: FastifyRequest, reply: FastifyReply) => {
