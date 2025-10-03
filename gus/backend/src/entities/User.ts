@@ -3,7 +3,8 @@ import {
   CreateDateColumn,
   Entity,
   OneToMany,
-  PrimaryGeneratedColumn
+  PrimaryGeneratedColumn,
+  Relation
 } from 'typeorm';
 import { RoundScore } from './RoundScore.js';
 
@@ -27,5 +28,5 @@ export class User {
   createdAt!: Date;
 
   @OneToMany(() => RoundScore, (score) => score.user)
-  scores!: RoundScore[];
+  scores!: Relation<RoundScore[]>;
 }

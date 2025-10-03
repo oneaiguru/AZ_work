@@ -6,6 +6,7 @@ import {
   JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
+  Relation,
   UpdateDateColumn
 } from 'typeorm';
 import { User } from './User.js';
@@ -19,11 +20,11 @@ export class RoundScore {
 
   @ManyToOne(() => User, (user) => user.scores, { eager: true })
   @JoinColumn({ name: 'user_id' })
-  user!: User;
+  user!: Relation<User>;
 
   @ManyToOne(() => Round, (round) => round.scores)
   @JoinColumn({ name: 'round_id' })
-  round!: Round;
+  round!: Relation<Round>;
 
   @Column({ type: 'integer', default: 0 })
   taps!: number;
