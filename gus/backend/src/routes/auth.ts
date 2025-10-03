@@ -1,7 +1,6 @@
 import { FastifyInstance } from 'fastify';
 import bcrypt from 'bcryptjs';
 import { AppDataSource } from '../config/data-source.js';
-import { env } from '../config/env.js';
 import { User, UserRole } from '../entities/User.js';
 
 interface LoginBody {
@@ -56,21 +55,14 @@ export async function authRoutes(app: FastifyInstance) {
       role: user.role
     });
 
-    reply
-      .setCookie('guss_token', token, {
-        httpOnly: true,
-        sameSite: 'lax',
-        path: '/',
-        secure: env.NODE_ENV === 'production'
-      })
-      .send({
-        token,
-        user: {
-          id: user.id,
-          username: user.username,
-          role: user.role
-        }
-      });
+    reply.send({
+      token,
+      user: {
+        id: user.id,
+        username: user.username,
+        role: user.role
+      }
+    });
   });
 
   app.get('/me', { preHandler: app.authenticate }, async (request) => {
