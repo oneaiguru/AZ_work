@@ -52,43 +52,64 @@ export function RoundsPage() {
 
   return (
     <AppLayout>
-      <div className="rounds-header">
-        <div className="rounds-heading-group">
-          <h2 className="rounds-heading">{t.rounds.heading}</h2>
-          <p className="rounds-subtitle">{t.rounds.subtitle}</p>
-        </div>
-        {user?.role === 'admin' && (
-          <button className="button" onClick={handleCreateRound}>
-            {t.rounds.create}
-          </button>
-        )}
-      </div>
+      <section className="page-section">
+        <header className="rounds-header" data-flow="auto">
+          <div className="rounds-heading-group text-block">
+            <h2 className="rounds-heading">{t.rounds.heading}</h2>
+            <p className="rounds-subtitle">{t.rounds.subtitle}</p>
+          </div>
+          {user?.role === 'admin' && (
+            <button className="button button-inline" onClick={handleCreateRound}>
+              {t.rounds.create}
+            </button>
+          )}
+        </header>
 
-      {roundsQuery.isError ? (
-        <p className="error-text">{t.rounds.errors.list}</p>
-      ) : roundsQuery.isLoading ? (
-        <p>{t.rounds.loading}</p>
-      ) : (
-        <div className="card-grid">
-          {roundsQuery.data?.map((round) => (
-            <article key={round.id} className="card">
-              <p className="card-status">{t.rounds.status[round.status]}</p>
-              <h3 className="card-title">{t.rounds.cardTitle(round.id.slice(0, 8))}</h3>
-              <p className="card-time">
-                {t.rounds.startLabel}: {new Date(round.startTime).toLocaleString(language === 'ru' ? 'ru-RU' : 'en-US')}
-              </p>
-              <p className="card-time">
-                {t.rounds.endLabel}: {new Date(round.endTime).toLocaleString(language === 'ru' ? 'ru-RU' : 'en-US')}
-              </p>
-              <Link to={`/rounds/${round.id}`} className="link-button">
-                {t.rounds.view}
-              </Link>
-            </article>
-          ))}
-          {roundsQuery.data?.length === 0 && <p>{t.rounds.empty}</p>}
-        </div>
-      )}
-      {creationError && <p className="error-text creation-error">{t.rounds.errors.create}</p>}
+        {roundsQuery.isError ? (
+          <p className="error-text" role="alert">
+            {t.rounds.errors.list}
+          </p>
+        ) : roundsQuery.isLoading ? (
+          <>
+            <p className="sr-only" role="status" aria-live="polite">
+              {t.rounds.loading}
+            </p>
+            <div className="card-grid" aria-hidden="true">
+              {Array.from({ length: 3 }).map((_, index) => (
+                <article key={index} className="card card--skeleton skeleton" />
+              ))}
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="card-grid">
+              {roundsQuery.data?.map((round) => (
+                <article key={round.id} className="card">
+                  <p className="card-status">{t.rounds.status[round.status]}</p>
+                  <h3 className="card-title">{t.rounds.cardTitle(round.id.slice(0, 8))}</h3>
+                  <p className="card-time">
+                    {t.rounds.startLabel}:{' '}
+                    {new Date(round.startTime).toLocaleString(language === 'ru' ? 'ru-RU' : 'en-US')}
+                  </p>
+                  <p className="card-time">
+                    {t.rounds.endLabel}:{' '}
+                    {new Date(round.endTime).toLocaleString(language === 'ru' ? 'ru-RU' : 'en-US')}
+                  </p>
+                  <Link to={`/rounds/${round.id}`} className="link-button">
+                    {t.rounds.view}
+                  </Link>
+                </article>
+              ))}
+            </div>
+            {roundsQuery.data?.length === 0 && <p className="empty-state text-block">{t.rounds.empty}</p>}
+          </>
+        )}
+        {creationError && (
+          <p className="error-text creation-error" role="alert">
+            {t.rounds.errors.create}
+          </p>
+        )}
+      </section>
     </AppLayout>
   );
 }

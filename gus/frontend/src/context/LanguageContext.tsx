@@ -22,6 +22,7 @@ const translations = {
       usernamePlaceholder: 'Например, GooseSlayer',
       passwordLabel: 'Пароль',
       passwordPlaceholder: 'Секретная фраза',
+      helper: 'Подключайтесь к центру управления Гусем, чтобы следить за раундами и зарабатывать очки.',
       submit: {
         idle: 'Влететь в бой',
         loading: 'Проверяем...'
@@ -102,6 +103,7 @@ const translations = {
       usernamePlaceholder: 'For example, GooseSlayer',
       passwordLabel: 'Password',
       passwordPlaceholder: 'Secret phrase',
+      helper: 'Connect to the Goose control hub to monitor rounds and earn points.',
       submit: {
         idle: 'Join the fight',
         loading: 'Checking...'

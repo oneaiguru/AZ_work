@@ -314,68 +314,105 @@ export function RoundDetailPage() {
 
   return (
     <AppLayout>
-      {roundQuery.isError && <p className="error-text">{t.roundDetail.fetchError}</p>}
-      {roundQuery.isLoading && <p>{t.roundDetail.loading}</p>}
-      {roundQuery.data && (
-        <div className="round-layout">
-          <Link to="/rounds" className="link-button round-detail-back">
-            {t.roundDetail.goBack}
-          </Link>
-          <div className="round-columns">
-            <section className="gus-panel">
-              <span className="timer-badge">{statusBadge}</span>
-              <div className="gus-art" role="button" aria-pressed={false}>
-                🦆
-              </div>
-              <button
-                className="button"
-                onClick={handleTap}
-                disabled={roundQuery.data.status !== 'active' || isTapping}
-              >
-                {buttonLabel}
-              </button>
-              <div>
-                <p className="score-label">{t.roundDetail.timeLabel}</p>
-                <p className="score-value">{remaining}</p>
-              </div>
-              <div>
-                <p className="score-label">{t.roundDetail.myScoreLabel}</p>
-                <p className="score-value">{roundQuery.data.myScore}</p>
-                <p className="score-meta">
-                  {t.roundDetail.taps(roundQuery.data.myTaps)}
-                </p>
-                {user?.role === 'nikita' && (
-                  <p className="nikita-warning">
-                    {t.roundDetail.nikitaWarning}
-                  </p>
-                )}
-              </div>
-            </section>
+      <section className="page-section round-layout">
+        <Link to="/rounds" className="link-button round-detail-back">
+          {t.roundDetail.goBack}
+        </Link>
 
-            {roundQuery.data.status === 'finished' && (
-              <section className="stats-card">
-                <h3 className="stats-heading">{t.roundDetail.stats.heading}</h3>
-                <p className="stats-text">{t.roundDetail.stats.totalScore(roundQuery.data.totalScore)}</p>
-                {roundQuery.data.winner ? (
-                  <p className="stats-text">
-                    {t.roundDetail.stats.winnerPrefix}{' '}
-                    <strong>{roundQuery.data.winner.username}</strong>{' '}
-                    {t.roundDetail.stats.winnerSuffix(roundQuery.data.winner.score)}
-                  </p>
-                ) : (
-                  <p className="stats-text">{t.roundDetail.stats.noWinner}</p>
-                )}
-                <p className="stats-text">{t.roundDetail.stats.yourResult(roundQuery.data.myScore)}</p>
-              </section>
-            )}
-          </div>
-          {(errorKey || serverError) && (
-            <p className="error-text">
-              {serverError ?? (errorKey ? t.roundDetail.errors[errorKey] : null)}
+        {roundQuery.isError && (
+          <p className="error-text" role="alert">
+            {t.roundDetail.fetchError}
+          </p>
+        )}
+
+        {roundQuery.isLoading && (
+          <>
+            <p className="sr-only" role="status" aria-live="polite">
+              {t.roundDetail.loading}
             </p>
-          )}
-        </div>
-      )}
+            <div className="surface-card round-skeleton skeleton" aria-hidden="true" />
+          </>
+        )}
+
+        {roundQuery.data && (
+          <>
+            <div className="round-sections" data-flow="auto">
+              <section className="surface-card goose-panel">
+                <span className="status-badge">{statusBadge}</span>
+                <button
+                  type="button"
+                  className="goose-hit-target"
+                  onClick={handleTap}
+                  disabled={
+                    roundQuery.data.status !== 'active' || isTapping || !socketReady
+                  }
+                  aria-label={buttonLabel}
+                  title={buttonLabel}
+                >
+                  🦆
+                </button>
+                <div className="metrics-group">
+                  <div className="metric-block">
+                    <span className="metric-label">{t.roundDetail.timeLabel}</span>
+                    <span className="metric-value timer-value">{remaining}</span>
+                  </div>
+                  <div className="metric-block">
+                    <span className="metric-label">{t.roundDetail.myScoreLabel}</span>
+                    <span className="metric-value">{roundQuery.data.myScore}</span>
+                    <p className="metric-caption">
+                      {t.roundDetail.taps(roundQuery.data.myTaps)}
+                    </p>
+                    {user?.role === 'nikita' && (
+                      <p className="nikita-warning metric-caption">
+                        {t.roundDetail.nikitaWarning}
+                      </p>
+                    )}
+                  </div>
+                </div>
+                <button
+                  className="button button-inline"
+                  type="button"
+                  onClick={handleTap}
+                  disabled={
+                    roundQuery.data.status !== 'active' || isTapping || !socketReady
+                  }
+                >
+                  {buttonLabel}
+                </button>
+              </section>
+
+              {roundQuery.data.status === 'finished' && (
+                <section className="surface-card round-status-panel text-block">
+                  <h3 className="stats-heading">{t.roundDetail.stats.heading}</h3>
+                  <p className="stats-text">
+                    {t.roundDetail.stats.totalScore(roundQuery.data.totalScore)}
+                  </p>
+                  {roundQuery.data.winner ? (
+                    <p className="stats-text">
+                      {t.roundDetail.stats.winnerPrefix}{' '}
+                      <strong>{roundQuery.data.winner.username}</strong>{' '}
+                      {t.roundDetail.stats.winnerSuffix(roundQuery.data.winner.score)}
+                    </p>
+                  ) : (
+                    <p className="stats-text">{t.roundDetail.stats.noWinner}</p>
+                  )}
+                  <p className="stats-text">
+                    {t.roundDetail.stats.yourResult(roundQuery.data.myScore)}
+                  </p>
+                </section>
+              )}
+            </div>
+
+            {(errorKey || serverError) && (
+              <div className="round-errors" role="alert">
+                <p className="error-text">
+                  {serverError ?? (errorKey ? t.roundDetail.errors[errorKey] : null)}
+                </p>
+              </div>
+            )}
+          </>
+        )}
+      </section>
     </AppLayout>
   );
 }
