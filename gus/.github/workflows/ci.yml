@@ -8,26 +8,34 @@ on:
 jobs:
   backend:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: gus/backend
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      - run: npm install
-      - run: npm run build
+      - name: Install dependencies
+        run: |
+          if [ -f gus/backend/package-lock.json ] || [ -f gus/backend/npm-shrinkwrap.json ]; then
+            npm ci --prefix gus/backend
+          else
+            npm install --prefix gus/backend
+          fi
+      - name: Build backend
+        run: npm run --prefix gus/backend build
 
   frontend:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: gus/frontend
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      - run: npm install
-      - run: npm run build
+      - name: Install dependencies
+        run: |
+          if [ -f gus/frontend/package-lock.json ] || [ -f gus/frontend/npm-shrinkwrap.json ]; then
+            npm ci --prefix gus/frontend
+          else
+            npm install --prefix gus/frontend
+          fi
+      - name: Build frontend
+        run: npm run --prefix gus/frontend build
