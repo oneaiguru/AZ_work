@@ -257,6 +257,19 @@ body {
   order: 2;
 }
 
+@media (min-width: 880px) {
+  .round-columns {
+    flex-direction: row;
+    flex-wrap: nowrap;
+  }
+
+  .round-columns > .gus-panel,
+  .round-columns > .stats-card {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+}
+
 .gus-panel {
   background: rgba(12, 13, 38, 0.6);
   border-radius: 32px;
@@ -319,7 +332,7 @@ body {
   border-radius: 24px;
   padding: clamp(18px, 3.2vw, 24px);
   display: grid;
-  gap: clamp(8px, 2vw, 12px);
+  gap: clamp(6px, 1.6vw, 10px);
 }
 
 .stats-heading {
@@ -329,7 +342,7 @@ body {
 
 .stats-text {
   margin: 0;
-  line-height: 1.35;
+  line-height: 1.24;
 }
 
 .link-button {
