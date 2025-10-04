@@ -10,23 +10,27 @@ export function AppLayout({ children }: PropsWithChildren) {
   return (
     <div className="app-shell">
       <header className="app-header">
-        <h1 className="app-logo">{t.app.title}</h1>
-        <div className="app-profile">
-          <LanguageSwitcher />
-          {user && (
-            <>
-              <div>
-                <p className="app-profile-label">{t.app.profileLabel}</p>
-                <p className="app-profile-name">{user.username}</p>
+        <div className="container app-header-inner" data-flow="auto">
+          <h1 className="app-logo">{t.app.title}</h1>
+          <div className="app-actions">
+            <LanguageSwitcher />
+            {user && (
+              <div className="app-profile">
+                <div>
+                  <p className="app-profile-label">{t.app.profileLabel}</p>
+                  <p className="app-profile-name">{user.username}</p>
+                </div>
+                <button onClick={logout} className="button button-outline button-inline">
+                  {t.app.logout}
+                </button>
               </div>
-              <button onClick={logout} className="button button-outline">
-                {t.app.logout}
-              </button>
-            </>
-          )}
+            )}
+          </div>
         </div>
       </header>
-      <main className="app-main">{children}</main>
+      <main className="app-main">
+        <div className="container app-main-inner">{children}</div>
+      </main>
     </div>
   );
 }
