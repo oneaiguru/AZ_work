@@ -14,7 +14,12 @@ jobs:
         with:
           node-version: 20
       - name: Install dependencies
-        run: npm ci --prefix gus/backend
+        run: |
+          if [ -f gus/backend/package-lock.json ] || [ -f gus/backend/npm-shrinkwrap.json ]; then
+            npm ci --prefix gus/backend
+          else
+            npm install --prefix gus/backend
+          fi
       - name: Build backend
         run: npm run --prefix gus/backend build
 
@@ -26,6 +31,11 @@ jobs:
         with:
           node-version: 20
       - name: Install dependencies
-        run: npm ci --prefix gus/frontend
+        run: |
+          if [ -f gus/frontend/package-lock.json ] || [ -f gus/frontend/npm-shrinkwrap.json ]; then
+            npm ci --prefix gus/frontend
+          else
+            npm install --prefix gus/frontend
+          fi
       - name: Build frontend
         run: npm run --prefix gus/frontend build
