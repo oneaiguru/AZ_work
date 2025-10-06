@@ -1,0 +1,61 @@
+{
+  "collectionName": "procurements",
+  "info": {
+    "singularName": "procurement",
+    "pluralName": "procurements",
+    "displayName": "Procurement",
+    "description": "Закупки и коммерческие предложения"
+  },
+  "options": {
+    "draftAndPublish": true
+  },
+  "attributes": {
+    "title": {
+      "type": "string",
+      "required": true,
+      "minLength": 10
+    },
+    "slug": {
+      "type": "uid",
+      "targetField": "title",
+      "required": true
+    },
+    "short_description": {
+      "type": "text"
+    },
+    "full_description": {
+      "type": "richtext"
+    },
+    "status": {
+      "type": "enumeration",
+      "enum": ["draft", "moderated", "published", "archived"],
+      "default": "draft"
+    },
+    "procurement_type": {
+      "type": "enumeration",
+      "enum": ["commercial", "contract", "service"],
+      "default": "contract"
+    },
+    "start_date": {
+      "type": "datetime"
+    },
+    "end_date": {
+      "type": "datetime"
+    },
+    "manager_name": {
+      "type": "string"
+    },
+    "manager_phone": {
+      "type": "string"
+    },
+    "manager_email": {
+      "type": "email"
+    },
+    "tags": {
+      "type": "json"
+    },
+    "eis_links": {
+      "type": "json"
+    }
+  }
+}
