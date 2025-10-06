@@ -1,0 +1,33 @@
+# Dependencies
+frontend/node_modules/
+cms/node_modules/
+
+# Build outputs
+frontend/.next/
+frontend/out/
+frontend/dist/
+
+cms/build/
+.cms-data/
+
+# Environment files
+.env
+.env.*
+!.env.example
+frontend/.env*
+cms/.env*
+
+# Local data
+cms/.tmp/
+frontend/.vercel/
+.docker/
+.DS_Store
+
+# Logs
+**/npm-debug.log*
+**/yarn-debug.log*
+**/yarn-error.log*
+**/pnpm-debug.log*
+
+# Strapi uploads (handled by storage service)
+cms/public/uploads/
