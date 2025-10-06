@@ -1,0 +1,31 @@
+{
+  "collectionName": "documents",
+  "info": {
+    "singularName": "document",
+    "pluralName": "documents",
+    "displayName": "Document",
+    "description": "Регламентные документы"
+  },
+  "options": {
+    "draftAndPublish": true
+  },
+  "attributes": {
+    "title": {
+      "type": "string",
+      "required": true
+    },
+    "category": {
+      "type": "string",
+      "required": true
+    },
+    "file": {
+      "type": "media",
+      "allowedTypes": ["files"],
+      "multiple": false,
+      "required": true
+    },
+    "document_date": {
+      "type": "date"
+    }
+  }
+}
