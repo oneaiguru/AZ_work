@@ -1,5 +1,4 @@
 import { getDocuments } from "@/lib/api";
-import Link from "next/link";
 
 function formatDate(date: string) {
   return new Date(date).toLocaleDateString("ru-RU", {
@@ -34,9 +33,9 @@ export default async function DocumentsPage() {
               <ul className="prose">
                 {docs.map((doc) => (
                   <li key={doc.id}>
-                    <Link href={doc.url} target="_blank">
+                    <a href={doc.url} target="_blank" rel="noopener noreferrer">
                       {doc.title}
-                    </Link>{" "}
+                    </a>{" "}
                     <span style={{ color: "var(--color-text-muted)", fontSize: "0.9rem" }}>
                       от {formatDate(doc.documentDate)}
                     </span>
