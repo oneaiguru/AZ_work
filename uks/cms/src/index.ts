@@ -15,7 +15,7 @@ async function ensureDefaultRoles(strapi: Core.Strapi) {
       description: "Может модерировать и публиковать контент",
       permissions: {
         "api::project": ["find", "findOne", "create", "update", "delete"],
-        "api::news-item": ["find", "findOne", "create", "update", "delete"],
+        "api::news-article": ["find", "findOne", "create", "update", "delete"],
         "api::document": ["find", "findOne", "create", "update", "delete"],
         "api::procurement": ["find", "findOne", "create", "update", "delete"],
       },
@@ -35,7 +35,7 @@ async function ensureDefaultRoles(strapi: Core.Strapi) {
       description: "Только просмотр контента",
       permissions: {
         "api::project": ["find", "findOne"],
-        "api::news-item": ["find", "findOne"],
+        "api::news-article": ["find", "findOne"],
         "api::document": ["find", "findOne"],
         "api::procurement": ["find", "findOne"],
       },

@@ -269,7 +269,7 @@ export async function getDocuments(): Promise<DocumentItem[]> {
 }
 
 export async function getNews(): Promise<NewsItem[]> {
-  return safeFetch<NewsItem[]>("/api/news-items", FALLBACK_HOMEPAGE.news);
+  return safeFetch<NewsItem[]>("/api/news-articles", FALLBACK_HOMEPAGE.news);
 }
 
 export async function getContacts(): Promise<ContactContent> {
