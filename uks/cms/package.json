@@ -1,0 +1,46 @@
+{
+  "name": "cms",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A Strapi application",
+  "scripts": {
+    "prebuild": "node ./scripts/cleanup-apis.mjs",
+    "prestart": "node ./scripts/cleanup-apis.mjs",
+    "predev": "node ./scripts/cleanup-apis.mjs",
+    "predevelop": "node ./scripts/cleanup-apis.mjs",
+    "build": "node node_modules/@strapi/strapi/bin/strapi.js build",
+    "console": "node node_modules/@strapi/strapi/bin/strapi.js console",
+    "deploy": "node node_modules/@strapi/strapi/bin/strapi.js deploy",
+    "dev": "node node_modules/@strapi/strapi/bin/strapi.js develop",
+    "develop": "node node_modules/@strapi/strapi/bin/strapi.js develop",
+    "start": "node node_modules/@strapi/strapi/bin/strapi.js start",
+    "strapi": "node node_modules/@strapi/strapi/bin/strapi.js",
+    "upgrade": "npx @strapi/upgrade latest",
+    "upgrade:dry": "npx @strapi/upgrade latest --dry"
+  },
+  "dependencies": {
+    "@strapi/plugin-cloud": "5.25.0",
+    "@strapi/plugin-users-permissions": "5.25.0",
+    "@strapi/provider-upload-aws-s3": "5.25.0",
+    "@strapi/strapi": "5.25.0",
+    "better-sqlite3": "11.3.0",
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0",
+    "react-router-dom": "^6.0.0",
+    "styled-components": "^6.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "@types/react": "^18",
+    "@types/react-dom": "^18",
+    "typescript": "^5"
+  },
+  "engines": {
+    "node": ">=18.0.0 <=22.x.x",
+    "npm": ">=6.0.0"
+  },
+  "strapi": {
+    "uuid": "af944d36-125f-48a2-b908-97ca31f26e74",
+    "installId": "22c9bc3575e46a8873c5c62bb585263f6dea284b11c17704a3b77b0711006b0d"
+  }
+}
