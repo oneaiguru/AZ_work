@@ -32,12 +32,20 @@ function buildPermissionPayload(permissions: PermissionMap) {
   );
 }
 
+type RoleRecord = {
+  id: number;
+  type?: string;
+  code?: string;
+  name?: string;
+  description?: string;
+};
+
 async function ensureDefaultRoles(strapi: Core.Strapi) {
   const roleService = strapi.service("plugin::users-permissions.role");
   const existingRaw = await roleService.find();
-  const existing = Array.isArray(existingRaw)
+  const existing: RoleRecord[] = Array.isArray(existingRaw)
     ? existingRaw
-    : existingRaw?.results ?? [];
+    : (existingRaw?.results as RoleRecord[] | undefined) ?? [];
 
   const desiredRoles: DesiredRole[] = [
     {
@@ -85,8 +93,8 @@ async function ensureDefaultRoles(strapi: Core.Strapi) {
     },
   ];
 
-  const rolesByCode = new Map(
-    existing.map((role: any) => [role.type ?? role.code ?? role.name, role])
+  const rolesByCode = new Map<string, RoleRecord>(
+    existing.map((role) => [role.type ?? role.code ?? role.name ?? role.id, role])
   );
 
   for (const role of desiredRoles) {
