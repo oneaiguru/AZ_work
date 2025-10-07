@@ -10,6 +10,6 @@
     "schema:snapshot": "directus schema snapshot snapshot.yaml --yes"
   },
   "dependencies": {
-    "directus": "^10.12.1"
+    "directus": "^11.12.0"
   }
 }

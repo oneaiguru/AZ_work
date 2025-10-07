@@ -1,6 +1,6 @@
 # УКС Иркутск — Next.js + Directus + Traefik
 
-Альтернативный стек для сайта Управления капитального строительства г. Иркутска. Вариант `uks2/` использует фронтенд на Next.js 14, Headless CMS Directus 10 и Traefik в роли реверс-прокси. Инфраструктура разворачивается через Docker Compose вместе с PostgreSQL, Redis и MinIO.
+Альтернативный стек для сайта Управления капитального строительства г. Иркутска. Вариант `uks2/` использует фронтенд на Next.js 14, Headless CMS Directus 11 и Traefik в роли реверс-прокси. Инфраструктура разворачивается через Docker Compose вместе с PostgreSQL, Redis и MinIO.
 
 ## Структура проекта
 
@@ -17,7 +17,7 @@ uks2/
 
 ## Предварительные требования
 
-- Node.js 20+ и npm 10+ (для локальной разработки фронтенда без контейнеров)
+- Node.js 22+ и npm 10+ (для локальной разработки CLI Directus; фронтенд можно запускать на Node 20, но Directus 11 требует Node 22)
 - Docker Engine 24+ и Docker Compose Plugin 2.24+
 - Возможность редактировать `/etc/hosts` (для привязки локальных доменов Traefik)
 
@@ -45,7 +45,7 @@ npm run dev
 Приложение будет доступно по адресу <http://localhost:3000>. Для интеграции с Directus пропишите `NEXT_PUBLIC_CMS_URL` и `CMS_INTERNAL_URL` в `frontend/.env.local`.
 
 ### Directus
-Directus запускается проще всего через Docker, однако для разработки можно использовать CLI:
+Directus запускается проще всего через Docker, однако для разработки можно использовать CLI (требуется Node.js 22+):
 ```bash
 cd uks2/directus
 npm install
@@ -64,6 +64,8 @@ npx directus schema apply snapshot.yaml
 cd uks2
 docker compose up --build
 ```
+
+> ℹ️ **Windows**: Убедитесь, что Docker Desktop запущен и доступен через named pipe `//./pipe/dockerDesktopLinuxEngine`. Если команда завершается ошибкой `unable to get image 'traefik:v3.1'`, значит Docker Engine не запущен. Перезапустите Docker Desktop и повторите `docker compose up --build`. При желании можно заранее выполнить `docker pull traefik:v3.1`.
 
 Сервисы и точки входа:
 - `https://uks2.localhost` — Next.js фронтенд через Traefik
