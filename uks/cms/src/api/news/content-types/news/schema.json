@@ -1,9 +1,9 @@
 {
-  "collectionName": "news",
+  "collectionName": "news_items",
   "info": {
-    "singularName": "news",
-    "pluralName": "news",
-    "displayName": "News",
+    "singularName": "news-item",
+    "pluralName": "news-items",
+    "displayName": "News item",
     "description": "Новости и анонсы"
   },
   "options": {
