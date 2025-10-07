@@ -1,23 +1,66 @@
 import type { Core } from "@strapi/strapi";
 
+type PermissionMap = Record<string, string[]>;
+
+type DesiredRole = {
+  name: string;
+  code: string;
+  description: string;
+  permissions: PermissionMap;
+};
+
+function buildPermissionPayload(permissions: PermissionMap) {
+  return Object.entries(permissions).reduce(
+    (acc, [contentType, actions]) => {
+      const controllerName = contentType.split("::")[1];
+
+      acc[contentType] = {
+        controllers: {
+          [controllerName]: actions.reduce(
+            (controllerAcc, action) => {
+              controllerAcc[action] = { enabled: true };
+              return controllerAcc;
+            },
+            {} as Record<string, { enabled: boolean }>
+          ),
+        },
+      };
+
+      return acc;
+    },
+    {} as Record<string, any>
+  );
+}
+
 async function ensureDefaultRoles(strapi: Core.Strapi) {
   const roleService = strapi.service("plugin::users-permissions.role");
   const existingRaw = await roleService.find();
   const existing = Array.isArray(existingRaw)
     ? existingRaw
     : existingRaw?.results ?? [];
-  const codes = existing.map((role: any) => role.code);
 
-  const desiredRoles = [
+  const desiredRoles: DesiredRole[] = [
     {
       name: "Editor",
       code: "editor",
       description: "Может модерировать и публиковать контент",
       permissions: {
         "api::project": ["find", "findOne", "create", "update", "delete"],
-        "api::news-article": ["find", "findOne", "create", "update", "delete"],
+        "api::news-article": [
+          "find",
+          "findOne",
+          "create",
+          "update",
+          "delete",
+        ],
         "api::document": ["find", "findOne", "create", "update", "delete"],
-        "api::procurement": ["find", "findOne", "create", "update", "delete"],
+        "api::procurement": [
+          "find",
+          "findOne",
+          "create",
+          "update",
+          "delete",
+        ],
       },
     },
     {
@@ -42,29 +85,29 @@ async function ensureDefaultRoles(strapi: Core.Strapi) {
     },
   ];
 
+  const rolesByCode = new Map(
+    existing.map((role: any) => [role.type ?? role.code ?? role.name, role])
+  );
+
   for (const role of desiredRoles) {
-    if (!codes.includes(role.code)) {
-      await roleService.create({
+    const permissionPayload = buildPermissionPayload(role.permissions);
+    const existingRole = rolesByCode.get(role.code);
+
+    if (existingRole) {
+      await roleService.updateRole(existingRole.id, {
         name: role.name,
-        code: role.code,
         description: role.description,
-        permissions: Object.entries(role.permissions).reduce(
-          (acc, [contentType, actions]) => {
-            const controller = contentType.split("::")[1];
-            acc[`api::${controller}`] = {
-              controllers: {
-                [controller]: actions.reduce((perms: Record<string, boolean>, action) => {
-                  perms[action] = true;
-                  return perms;
-                }, {}),
-              },
-            };
-            return acc;
-          },
-          {} as Record<string, any>
-        ),
+        permissions: permissionPayload,
       });
+      continue;
     }
+
+    await roleService.createRole({
+      name: role.name,
+      description: role.description,
+      type: role.code,
+      permissions: permissionPayload,
+    });
   }
 }
 

@@ -28,15 +28,18 @@ const randomAlphaNumeric = (length) => {
 
 const randomUrlSafe = (bytes = 32) => crypto.randomBytes(bytes).toString('base64url');
 
-const secrets = new Map(Object.entries({
-  APP_KEYS: () => Array.from({ length: 4 }, () => randomUrlSafe(32)).join(','),
-  API_TOKEN_SALT: () => randomUrlSafe(32),
-  ADMIN_JWT_SECRET: () => randomUrlSafe(32),
-  TRANSFER_TOKEN_SALT: () => randomUrlSafe(32),
-  DATABASE_PASSWORD: () => randomAlphaNumeric(24),
-  MINIO_ACCESS_KEY: () => randomAlphaNumeric(20),
-  MINIO_SECRET_KEY: () => randomAlphaNumeric(40),
-}));
+const secrets = new Map(
+  Object.entries({
+    APP_KEYS: () => Array.from({ length: 4 }, () => randomUrlSafe(32)).join(','),
+    API_TOKEN_SALT: () => randomUrlSafe(32),
+    ADMIN_JWT_SECRET: () => randomUrlSafe(32),
+    TRANSFER_TOKEN_SALT: () => randomUrlSafe(32),
+    ENCRYPTION_KEY: () => randomUrlSafe(32),
+    DATABASE_PASSWORD: () => randomAlphaNumeric(24),
+    MINIO_ACCESS_KEY: () => randomAlphaNumeric(20),
+    MINIO_SECRET_KEY: () => randomAlphaNumeric(40),
+  })
+);
 
 const exampleContent = fs.readFileSync(examplePath, 'utf8');
 const generatedLines = exampleContent.split(/\r?\n/).map((line) => {
