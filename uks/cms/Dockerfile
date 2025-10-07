@@ -8,6 +8,7 @@ RUN npm ci
 COPY tsconfig.json ./tsconfig.json
 COPY config ./config
 COPY public ./public
+COPY scripts ./scripts
 COPY src ./src
 
 # Remove any API directories left over from prior builds that are no longer part of the codebase
