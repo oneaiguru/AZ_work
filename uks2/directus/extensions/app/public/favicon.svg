@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title desc">
+  <title>УКС Иркутск</title>
+  <desc>Минималистичная пиктограмма в фирменных цветах</desc>
+  <defs>
+    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0b4da2" />
+      <stop offset="100%" stop-color="#2b9bdc" />
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="12" fill="url(#grad)" />
+  <path fill="#ffffff" d="M18 44V20h8l6 9.6L38 20h8v24h-6V30.9l-8 12.1-8-12.1V44z"/>
+</svg>
