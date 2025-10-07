@@ -1,0 +1,7 @@
+node_modules
+build
+.cache
+.tmp
+dist
+.DS_Store
+.git
