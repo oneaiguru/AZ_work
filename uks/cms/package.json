@@ -4,6 +4,10 @@
   "private": true,
   "description": "A Strapi application",
   "scripts": {
+    "prebuild": "node ./scripts/cleanup-apis.mjs",
+    "prestart": "node ./scripts/cleanup-apis.mjs",
+    "predev": "node ./scripts/cleanup-apis.mjs",
+    "predevelop": "node ./scripts/cleanup-apis.mjs",
     "build": "node node_modules/@strapi/strapi/bin/strapi.js build",
     "console": "node node_modules/@strapi/strapi/bin/strapi.js console",
     "deploy": "node node_modules/@strapi/strapi/bin/strapi.js deploy",
