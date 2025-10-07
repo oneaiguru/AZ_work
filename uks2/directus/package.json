@@ -1,0 +1,15 @@
+{
+  "name": "uks2-directus",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "directus start",
+    "bootstrap": "directus bootstrap",
+    "schema:apply": "directus schema apply snapshot.yaml",
+    "schema:snapshot": "directus schema snapshot snapshot.yaml --yes"
+  },
+  "dependencies": {
+    "directus": "^11.12.0"
+  }
+}

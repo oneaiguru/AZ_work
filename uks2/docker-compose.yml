@@ -1,0 +1,139 @@
+services:
+  traefik:
+    image: traefik:v3.1
+    restart: unless-stopped
+    command:
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --entrypoints.web.address=:80
+      - --entrypoints.websecure.address=:443
+      - --certificatesresolvers.le.acme.httpchallenge=true
+      - --certificatesresolvers.le.acme.httpchallenge.entrypoint=web
+      - --certificatesresolvers.le.acme.email=${TRAEFIK_EMAIL}
+      - --certificatesresolvers.le.acme.storage=/acme.json
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./ops/traefik/acme.json:/acme.json
+      - ./ops/traefik/traefik.yml:/traefik.yml:ro
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DATABASE_NAME}
+      POSTGRES_USER: ${DATABASE_USERNAME}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    ports:
+      - "6380:6379"
+
+  minio:
+    image: quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z
+    restart: unless-stopped
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+
+  directus:
+    image: directus/directus:11.12.0
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      KEY: ${DIRECTUS_KEY}
+      SECRET: ${DIRECTUS_SECRET}
+      ADMIN_EMAIL: ${DIRECTUS_ADMIN_EMAIL}
+      ADMIN_PASSWORD: ${DIRECTUS_ADMIN_PASSWORD}
+      PUBLIC_URL: ${DIRECTUS_PUBLIC_URL}
+      DB_CLIENT: ${DATABASE_CLIENT}
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_DATABASE: ${DATABASE_NAME}
+      DB_USER: ${DATABASE_USERNAME}
+      DB_PASSWORD: ${DATABASE_PASSWORD}
+      CACHE_ENABLED: ${DIRECTUS_CACHE_ENABLED}
+      CACHE_REDIS: ${DIRECTUS_CACHE_REDIS}
+      STORAGE_LOCATIONS: ${DIRECTUS_STORAGE_LOCATIONS}
+      STORAGE_LOCAL_ROOT: /directus/uploads
+      REFRESH_TOKEN_COOKIE_DOMAIN: ${DIRECTUS_COOKIE_DOMAIN}
+      REFRESH_TOKEN_COOKIE_SECURE: ${DIRECTUS_REFRESH_COOKIE_SECURE}
+      REFRESH_TOKEN_COOKIE_SAME_SITE: ${DIRECTUS_REFRESH_COOKIE_SAME_SITE}
+      APP_ICON: ${DIRECTUS_APP_ICON}
+      EMAIL_TRANSPORT: ${DIRECTUS_EMAIL_TRANSPORT}
+      EMAIL_FROM: ${DIRECTUS_ADMIN_EMAIL}
+      REDIS: redis://redis:6379/0
+      CORS_ENABLED: ${DIRECTUS_CORS_ENABLED}
+      CORS_ORIGIN: ${DIRECTUS_CORS_ORIGIN}
+      EXTENSIONS_AUTO_RELOAD: "true"
+      NODE_ENV: production
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      minio:
+        condition: service_started
+    volumes:
+      - ./directus/uploads:/directus/uploads
+      - ./directus/extensions:/directus/extensions
+      - ./directus/snapshot.yaml:/directus/snapshot.yaml:ro
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.uks2-directus.rule=Host(`cms.${TRAEFIK_DOMAIN}`)
+      - traefik.http.routers.uks2-directus.entrypoints=web
+      - traefik.http.routers.uks2-directus-secure.rule=Host(`cms.${TRAEFIK_DOMAIN}`)
+      - traefik.http.routers.uks2-directus-secure.entrypoints=websecure
+      - traefik.http.routers.uks2-directus-secure.tls=true
+      - traefik.http.routers.uks2-directus-secure.tls.certresolver=le
+      - traefik.http.services.uks2-directus.loadbalancer.server.port=8055
+
+  frontend:
+    build:
+      context: ./frontend
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+      NEXT_PUBLIC_CMS_URL: ${NEXT_PUBLIC_CMS_URL}
+      NEXT_PUBLIC_ASSETS_URL: ${NEXT_PUBLIC_ASSETS_URL}
+      NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL}
+      CMS_INTERNAL_URL: ${CMS_INTERNAL_URL}
+    depends_on:
+      directus:
+        condition: service_started
+    command: ["node", "server.js"]
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.uks2-frontend.rule=Host(`${TRAEFIK_DOMAIN}`)
+      - traefik.http.routers.uks2-frontend.entrypoints=web
+      - traefik.http.routers.uks2-frontend-secure.rule=Host(`${TRAEFIK_DOMAIN}`)
+      - traefik.http.routers.uks2-frontend-secure.entrypoints=websecure
+      - traefik.http.routers.uks2-frontend-secure.tls=true
+      - traefik.http.routers.uks2-frontend-secure.tls.certresolver=le
+      - traefik.http.services.uks2-frontend.loadbalancer.server.port=3000
+
+volumes:
+  postgres_data:
+  minio_data:
