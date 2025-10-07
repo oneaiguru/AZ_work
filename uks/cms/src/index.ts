@@ -94,7 +94,17 @@ async function ensureDefaultRoles(strapi: Core.Strapi) {
   ];
 
   const rolesByCode = new Map<string, RoleRecord>(
-    existing.map((role) => [role.type ?? role.code ?? role.name ?? role.id, role])
+    existing
+      .map((role) => {
+        const key =
+          role.type ??
+          role.code ??
+          role.name ??
+          (typeof role.id !== "undefined" ? String(role.id) : undefined);
+
+        return key ? ([key, role] as [string, RoleRecord]) : null;
+      })
+      .filter((entry): entry is [string, RoleRecord] => entry !== null)
   );
 
   for (const role of desiredRoles) {
