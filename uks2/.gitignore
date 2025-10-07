@@ -1,0 +1,31 @@
+# Dependencies
+frontend/node_modules/
+directus/node_modules/
+
+# Build outputs
+frontend/.next/
+frontend/out/
+frontend/dist/
+
+# Directus build artifacts
+directus/.cache/
+directus/.env.local
+
+# Environment files
+.env
+.env.*
+!.env.example
+frontend/.env*
+directus/.env*
+
+# Local data
+directus/uploads/
+frontend/.vercel/
+.docker/
+.DS_Store
+
+# Logs
+**/npm-debug.log*
+**/yarn-debug.log*
+**/yarn-error.log*
+**/pnpm-debug.log*
