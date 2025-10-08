@@ -8,7 +8,7 @@
 - Права sudo и доступ по SSH.
 - Открытые порты 80 и 443 из внешней сети (для HTTP-01 challenge и HTTPS).
 - Установленные Docker Engine 24+ и Docker Compose Plugin 2.24+.
-- Зарегистрированные домены, которые будут вести на фронтенд и CMS (например, `uks.example.ru` и `cms.uks.example.ru`).
+- Зарегистрированные домены, которые будут вести на фронтенд и CMS (для боевого окружения используются `uks.delightsoft.ru` и `cms.uks.delightsoft.ru`).
 - Аккаунт на почте для уведомлений Let's Encrypt (адрес задаётся переменной `TRAEFIK_EMAIL`).
 
 ### 1.1 Установка Docker и Compose (Ubuntu/Debian)
@@ -56,13 +56,13 @@ cd AZ_work/uks2
    Скрипт создаст `uks2/.env` с уникальными ключами для Directus, PostgreSQL и MinIO.
 
 2. Откройте `.env` и настройте домены и URL:
-   - `TRAEFIK_DOMAIN=uks.example.ru`
-   - `NEXT_PUBLIC_SITE_URL=https://uks.example.ru`
-   - `NEXT_PUBLIC_CMS_URL=https://cms.uks.example.ru`
-   - `NEXT_PUBLIC_ASSETS_URL=https://cms.uks.example.ru/assets`
-   - `DIRECTUS_PUBLIC_URL=https://cms.uks.example.ru`
+   - `TRAEFIK_DOMAIN=uks.delightsoft.ru`
+   - `NEXT_PUBLIC_SITE_URL=https://uks.delightsoft.ru`
+   - `NEXT_PUBLIC_CMS_URL=https://cms.uks.delightsoft.ru`
+   - `NEXT_PUBLIC_ASSETS_URL=https://cms.uks.delightsoft.ru/assets`
+   - `DIRECTUS_PUBLIC_URL=https://cms.uks.delightsoft.ru`
    - `CMS_INTERNAL_URL=http://directus:8055`
-   - `DIRECTUS_COOKIE_DOMAIN=cms.uks.example.ru`
+   - `DIRECTUS_COOKIE_DOMAIN=cms.uks.delightsoft.ru`
    - `TRAEFIK_EMAIL=devops@example.ru` (рабочая почта для уведомлений Let’s Encrypt)
 
 3. При необходимости смените `DIRECTUS_ADMIN_EMAIL` / `DIRECTUS_ADMIN_PASSWORD` и другие параметры (SMTP, MinIO бакеты, настройки кэша).
@@ -73,7 +73,7 @@ cd AZ_work/uks2
    ```bash
    chmod 600 ops/traefik/acme.json
    ```
-2. Убедитесь, что DNS-записи доменов (`A`/`AAAA`) указывают на IP сервера. Для поддоменов CMS добавьте запись `cms.uks.example.ru` -> `X.X.X.X`.
+2. Убедитесь, что DNS-записи доменов (`A`/`AAAA`) указывают на IP сервера. Для поддоменов CMS добавьте запись `cms.uks.delightsoft.ru` -> `X.X.X.X`.
 3. Если сервер находится за файрволом, откройте порты 80 и 443:
    ```bash
    sudo ufw allow 80/tcp
@@ -98,16 +98,16 @@ docker compose logs -f directus
 ```
 
 После запуска сервисы будут доступны по HTTPS:
-- `https://uks.example.ru` — публичный сайт (Next.js)
-- `https://cms.uks.example.ru/admin` — панель Directus
-- `https://cms.uks.example.ru/items/...` — REST API Directus
-- `https://cms.uks.example.ru/graphql` — GraphQL API
+- `https://uks.delightsoft.ru` — публичный сайт (Next.js)
+- `https://cms.uks.delightsoft.ru/admin` — панель Directus
+- `https://cms.uks.delightsoft.ru/items/...` — REST API Directus
+- `https://cms.uks.delightsoft.ru/graphql` — GraphQL API
 
 > Первое обращение к доменам может занять 30–60 секунд, пока Traefik получает сертификат. До завершения процедуры браузер может показывать ошибку 404/502.
 
 ## 6. Первичная настройка Directus
 
-1. Зайдите в админку `https://cms.uks.example.ru/admin` и войдите с данными из `.env`.
+1. Зайдите в админку `https://cms.uks.delightsoft.ru/admin` и войдите с данными из `.env`.
 2. Проверьте раздел **Settings → Storage** и привяжите бакеты MinIO (публичный и приватный).
 3. Включите запланированные задачи (flows) или интеграции, если они нужны.
 4. Создайте пользователей-редакторов и назначьте им готовые роли из снапшота.
