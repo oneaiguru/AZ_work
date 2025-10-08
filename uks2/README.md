@@ -32,7 +32,7 @@ uks2/
    ```
    127.0.0.1 uks2.localhost cms.uks2.localhost
    ```
-3. При необходимости скорректируйте значения `TRAEFIK_DOMAIN`, `NEXT_PUBLIC_CMS_URL` и `NEXT_PUBLIC_SITE_URL` под собственный домен/порты. При работе через Traefik обязательно укажите тот же домен в `DIRECTUS_PUBLIC_URL` — иначе браузер не сохранит cookie сеанса и вход в Directus завершится ошибкой 400 на `/auth/login`.
+3. При необходимости скорректируйте значения `TRAEFIK_DOMAIN`, `NEXT_PUBLIC_CMS_URL` и `NEXT_PUBLIC_SITE_URL` под собственный домен/порты. В боевой конфигурации сервисы доступны по адресу `https://uks.delightsoft.ru` (фронтенд) и `https://cms.uks.delightsoft.ru` (Directus), поэтому `.env.example` уже содержит эти значения. Для локальной разработки замените их на `uks2.localhost` и `cms.uks2.localhost`. При работе через Traefik обязательно укажите тот же домен в `DIRECTUS_PUBLIC_URL` — иначе браузер не сохранит cookie сеанса и вход в Directus завершится ошибкой 400 на `/auth/login`.
 
 ## Локальная разработка без Docker
 
@@ -68,8 +68,9 @@ docker compose up --build
 > ℹ️ **Windows**: Убедитесь, что Docker Desktop запущен и доступен через named pipe `//./pipe/dockerDesktopLinuxEngine`. Если команда завершается ошибкой `unable to get image 'traefik:v3.1'`, значит Docker Engine не запущен. Перезапустите Docker Desktop и повторите `docker compose up --build`. При желании можно заранее выполнить `docker pull traefik:v3.1`.
 
 Сервисы и точки входа:
-- `https://uks2.localhost` — Next.js фронтенд через Traefik
-- `https://cms.uks2.localhost` — Directus (REST, GraphQL, админка)
+- `https://uks.delightsoft.ru` — публичный домен фронтенда через Traefik
+- `https://cms.uks.delightsoft.ru` — Directus (REST, GraphQL, админка)
+- `https://uks2.localhost` / `https://cms.uks2.localhost` — локальная среда (при замене доменов в `.env`)
 - `http://localhost:8055` — прямой доступ к Directus (в обход Traefik)
 - `http://localhost:9001` — MinIO console (логин/пароль из `.env`)
 - `redis://localhost:6379` — Redis для кеша Directus
