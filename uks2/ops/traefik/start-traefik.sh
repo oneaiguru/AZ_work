@@ -1,15 +1,18 @@
 #!/bin/sh
-set -e
+
+error() {
+  echo "$*" >&2
+  exit 1
+}
 
 if [ -z "${TRAEFIK_EMAIL:-}" ]; then
-  echo "TRAEFIK_EMAIL must be set for ACME registration." >&2
-  exit 1
+  error "TRAEFIK_EMAIL must be set for ACME registration."
 fi
 
 if [ ! -f /acme.json ]; then
-  touch /acme.json
+  touch /acme.json || error "Failed to create /acme.json"
 fi
-chmod 600 /acme.json || true
+chmod 600 /acme.json 2>/dev/null || true
 
 challenge="${TRAEFIK_ACME_CHALLENGE:-http}"
 challenge=$(printf '%s' "$challenge" | tr '[:upper:]' '[:lower:]')
@@ -34,8 +37,7 @@ case "$challenge" in
     ;;
   dns)
     if [ -z "${TRAEFIK_DNS_PROVIDER:-}" ]; then
-      echo "TRAEFIK_DNS_PROVIDER must be set when TRAEFIK_ACME_CHALLENGE=dns." >&2
-      exit 1
+      error "TRAEFIK_DNS_PROVIDER must be set when TRAEFIK_ACME_CHALLENGE=dns."
     fi
     set -- "$@" \
       --certificatesresolvers.le.acme.dnschallenge=true \
@@ -51,8 +53,7 @@ case "$challenge" in
     fi
     ;;
   *)
-    echo "Unknown TRAEFIK_ACME_CHALLENGE '$challenge'. Expected http, tls, or dns." >&2
-    exit 1
+    error "Unknown TRAEFIK_ACME_CHALLENGE '$challenge'. Expected http, tls, or dns."
     ;;
 esac
 
