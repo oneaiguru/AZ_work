@@ -56,13 +56,15 @@ cd AZ_work/uks2
    Скрипт создаст `uks2/.env` с уникальными ключами для Directus, PostgreSQL и MinIO.
 
 2. Откройте `.env` и настройте домены и URL:
-   - `TRAEFIK_DOMAIN=uks.delightsoft.ru`
+   - `TRAEFIK_SITE_DOMAIN=uks.delightsoft.ru`
+   - `TRAEFIK_CMS_DOMAIN=cms.uks.delightsoft.ru`
    - `NEXT_PUBLIC_SITE_URL=https://uks.delightsoft.ru`
    - `NEXT_PUBLIC_CMS_URL=https://cms.uks.delightsoft.ru`
    - `NEXT_PUBLIC_ASSETS_URL=https://cms.uks.delightsoft.ru/assets`
    - `DIRECTUS_PUBLIC_URL=https://cms.uks.delightsoft.ru`
    - `CMS_INTERNAL_URL=http://directus:8055`
-   - `DIRECTUS_COOKIE_DOMAIN=cms.uks.delightsoft.ru`
+   - `DIRECTUS_COOKIE_DOMAIN=.uks.delightsoft.ru`
+   - `DIRECTUS_REFRESH_COOKIE_SECURE=true`
    - `TRAEFIK_EMAIL=devops@example.ru` (рабочая почта для уведомлений Let’s Encrypt)
 
 3. При необходимости смените `DIRECTUS_ADMIN_EMAIL` / `DIRECTUS_ADMIN_PASSWORD` и другие параметры (SMTP, MinIO бакеты, настройки кэша).
@@ -73,7 +75,7 @@ cd AZ_work/uks2
    ```bash
    chmod 600 ops/traefik/acme.json
    ```
-2. Убедитесь, что DNS-записи доменов (`A`/`AAAA`) указывают на IP сервера. Для поддоменов CMS добавьте запись `cms.uks.delightsoft.ru` -> `X.X.X.X`.
+2. Убедитесь, что DNS-записи доменов (`A`/`AAAA`) указывают на IP сервера. Для поддоменов CMS добавьте запись `cms.uks.delightsoft.ru` -> `X.X.X.X` и при необходимости укажите CNAME на `uks.delightsoft.ru`, если используется один и тот же IP.
 3. Если сервер находится за файрволом, откройте порты 80 и 443:
    ```bash
    sudo ufw allow 80/tcp
@@ -103,7 +105,7 @@ docker compose logs -f directus
 - `https://cms.uks.delightsoft.ru/items/...` — REST API Directus
 - `https://cms.uks.delightsoft.ru/graphql` — GraphQL API
 
-> Первое обращение к доменам может занять 30–60 секунд, пока Traefik получает сертификат. До завершения процедуры браузер может показывать ошибку 404/502.
+> Первое обращение к доменам может занять 30–60 секунд, пока Traefik получает сертификат. До завершения процедуры браузер может показывать ошибку 404/502 или предупреждение о небезопасном соединении — дождитесь окончания выдачи сертификата и перезагрузите страницу.
 
 ## 6. Первичная настройка Directus
 

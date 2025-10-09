@@ -101,12 +101,13 @@ services:
       - ./directus/snapshot.yaml:/directus/snapshot.yaml:ro
     labels:
       - traefik.enable=true
-      - traefik.http.routers.uks2-directus.rule=Host(`cms.${TRAEFIK_DOMAIN}`)
+      - traefik.http.routers.uks2-directus.rule=Host(`${TRAEFIK_CMS_DOMAIN}`)
       - traefik.http.routers.uks2-directus.entrypoints=web
-      - traefik.http.routers.uks2-directus-secure.rule=Host(`cms.${TRAEFIK_DOMAIN}`)
+      - traefik.http.routers.uks2-directus-secure.rule=Host(`${TRAEFIK_CMS_DOMAIN}`)
       - traefik.http.routers.uks2-directus-secure.entrypoints=websecure
       - traefik.http.routers.uks2-directus-secure.tls=true
       - traefik.http.routers.uks2-directus-secure.tls.certresolver=le
+      - traefik.http.routers.uks2-directus-secure.tls.domains[0].main=${TRAEFIK_CMS_DOMAIN}
       - traefik.http.services.uks2-directus.loadbalancer.server.port=8055
 
   frontend:
@@ -126,12 +127,13 @@ services:
     command: ["node", "server.js"]
     labels:
       - traefik.enable=true
-      - traefik.http.routers.uks2-frontend.rule=Host(`${TRAEFIK_DOMAIN}`)
+      - traefik.http.routers.uks2-frontend.rule=Host(`${TRAEFIK_SITE_DOMAIN}`)
       - traefik.http.routers.uks2-frontend.entrypoints=web
-      - traefik.http.routers.uks2-frontend-secure.rule=Host(`${TRAEFIK_DOMAIN}`)
+      - traefik.http.routers.uks2-frontend-secure.rule=Host(`${TRAEFIK_SITE_DOMAIN}`)
       - traefik.http.routers.uks2-frontend-secure.entrypoints=websecure
       - traefik.http.routers.uks2-frontend-secure.tls=true
       - traefik.http.routers.uks2-frontend-secure.tls.certresolver=le
+      - traefik.http.routers.uks2-frontend-secure.tls.domains[0].main=${TRAEFIK_SITE_DOMAIN}
       - traefik.http.services.uks2-frontend.loadbalancer.server.port=3000
 
 volumes:
