@@ -155,7 +155,7 @@ sudo tar czf minio-data-$(date +%F).tar.gz -C /var/lib/docker/volumes/ $(docker 
 ## 9. Устранение неполадок
 
 - **HTTP 400 при логине в Directus** — проверьте `DIRECTUS_PUBLIC_URL` и `DIRECTUS_COOKIE_DOMAIN`, они должны совпадать с фактическим доменом.
-- **Traefik не получает сертификат** — убедитесь в доступности порта 80 снаружи и корректности DNS. В логах Traefik ищите сообщения ACME.
+- **Traefik не получает сертификат / браузер пишет `ERR_CERT_AUTHORITY_INVALID`** — убедитесь в доступности порта 80 снаружи и корректности DNS. Проверьте логи `docker compose logs traefik`, права на `ops/traefik/acme.json` и при необходимости перевыпустите сертификат по инструкции [https-troubleshooting.md](https-troubleshooting.md).
 - **Directus не стартует из-за схемы** — примените снапшот вручную либо удалите проблемные коллекции через CLI.
 - **Directus перезапускается с ошибкой `password authentication failed for user "uks2"`** — пароль в `.env` не совпадает с тем,
   что хранится в PostgreSQL. Алгоритм восстановления:

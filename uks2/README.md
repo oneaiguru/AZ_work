@@ -86,7 +86,7 @@ docker compose up --build
 
 ### Продакшн на Unix-сервере
 
-Для пошаговой установки на Linux-сервере с публичным доменом и автоматическим выпуском TLS-сертификатов см. документ [docs/unix-docker-deployment.md](docs/unix-docker-deployment.md). В нём описаны требования, настройка DNS, генерация `.env`, подготовка Traefik и регулярное обслуживание контейнеров. Для разбора типовых ошибок (например, `password authentication failed for user "uks2"`) загляните в [docs/directus-troubleshooting.md](docs/directus-troubleshooting.md).
+Для пошаговой установки на Linux-сервере с публичным доменом и автоматическим выпуском TLS-сертификатов см. документ [docs/unix-docker-deployment.md](docs/unix-docker-deployment.md). В нём описаны требования, настройка DNS, генерация `.env`, подготовка Traefik и регулярное обслуживание контейнеров. Если браузер сообщает о недоверенном сертификате (`ERR_CERT_AUTHORITY_INVALID`), следуйте инструкции [docs/https-troubleshooting.md](docs/https-troubleshooting.md). Для разбора типовых ошибок Directus (например, `password authentication failed for user "uks2"`) загляните в [docs/directus-troubleshooting.md](docs/directus-troubleshooting.md).
 
 ### Для чего нужен Redis
 
