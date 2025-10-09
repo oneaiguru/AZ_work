@@ -1,0 +1,322 @@
+version: 1
+collections:
+  - collection: homepage
+    meta:
+      singleton: true
+      accountability: all
+      icon: home
+      note: Главная страница сайта УКС Иркутск 2
+    schema:
+      name: homepage
+  - collection: projects
+    meta:
+      icon: apartment
+      note: Реестр проектов УКС
+      sort_field: sort
+    schema:
+      name: projects
+  - collection: procurements
+    meta:
+      icon: gavel
+      note: Открытые закупочные процедуры
+      sort_field: sort
+    schema:
+      name: procurements
+  - collection: documents
+    meta:
+      icon: description
+      note: Документы и отчеты УКС
+      sort_field: sort
+    schema:
+      name: documents
+  - collection: news_articles
+    meta:
+      icon: feed
+      note: Новости и публикации УКС
+      sort_field: sort
+    schema:
+      name: news_articles
+  - collection: contacts
+    meta:
+      singleton: true
+      icon: contact_page
+      note: Контакты УКС
+    schema:
+      name: contacts
+
+fields:
+  - collection: homepage
+    field: hero_title
+    type: string
+    meta:
+      interface: input
+      display: formatted-value
+      required: true
+      width: full
+  - collection: homepage
+    field: hero_subtitle
+    type: text
+    meta:
+      interface: textarea
+      options:
+        softLength: 220
+      width: full
+  - collection: homepage
+    field: hero_primary_label
+    type: string
+    meta:
+      interface: input
+      width: half
+  - collection: homepage
+    field: hero_primary_href
+    type: string
+    meta:
+      interface: input
+      width: half
+  - collection: homepage
+    field: hero_secondary_label
+    type: string
+    meta:
+      interface: input
+      width: half
+  - collection: homepage
+    field: hero_secondary_href
+    type: string
+    meta:
+      interface: input
+      width: half
+  - collection: homepage
+    field: hero_stats
+    type: json
+    meta:
+      interface: json
+      width: full
+      note: JSON массив объектов { value, label }
+  - collection: homepage
+    field: about_intro
+    type: text
+    meta:
+      interface: textarea
+      width: full
+  - collection: homepage
+    field: about_values
+    type: json
+    meta:
+      interface: json
+      width: full
+      note: JSON массив с ценностями
+  - collection: homepage
+    field: flagship_title
+    type: string
+    meta:
+      interface: input
+      width: full
+  - collection: homepage
+    field: flagship_description
+    type: text
+    meta:
+      interface: textarea
+      width: full
+  - collection: homepage
+    field: flagship_highlights
+    type: json
+    meta:
+      interface: json
+      width: full
+      note: JSON список этапов
+
+  - collection: projects
+    field: id
+    type: integer
+    schema:
+      is_primary_key: true
+      has_auto_increment: true
+  - collection: projects
+    field: title
+    type: string
+    meta:
+      interface: input
+      required: true
+  - collection: projects
+    field: slug
+    type: string
+    meta:
+      interface: input
+      required: true
+      unique: true
+  - collection: projects
+    field: category
+    type: string
+    meta:
+      interface: input
+  - collection: projects
+    field: year
+    type: integer
+    meta:
+      interface: input
+  - collection: projects
+    field: description
+    type: text
+    meta:
+      interface: textarea
+  - collection: projects
+    field: sort
+    type: integer
+    meta:
+      interface: input
+
+  - collection: procurements
+    field: id
+    type: integer
+    schema:
+      is_primary_key: true
+      has_auto_increment: true
+  - collection: procurements
+    field: title
+    type: string
+    meta:
+      interface: input
+      required: true
+  - collection: procurements
+    field: slug
+    type: string
+    meta:
+      interface: input
+      required: true
+      unique: true
+  - collection: procurements
+    field: status
+    type: string
+    meta:
+      interface: select-dropdown
+      options:
+        choices:
+          - text: Идет прием заявок
+            value: open
+          - text: Завершена
+            value: closed
+          - text: Подведение итогов
+            value: reviewing
+  - collection: procurements
+    field: shortDescription
+    type: text
+    meta:
+      interface: textarea
+  - collection: procurements
+    field: procurementType
+    type: string
+    meta:
+      interface: input
+  - collection: procurements
+    field: startDate
+    type: date
+    meta:
+      interface: date
+  - collection: procurements
+    field: endDate
+    type: date
+    meta:
+      interface: date
+  - collection: procurements
+    field: sort
+    type: integer
+    meta:
+      interface: input
+
+  - collection: documents
+    field: id
+    type: integer
+    schema:
+      is_primary_key: true
+      has_auto_increment: true
+  - collection: documents
+    field: title
+    type: string
+    meta:
+      interface: input
+      required: true
+  - collection: documents
+    field: category
+    type: string
+    meta:
+      interface: input
+  - collection: documents
+    field: url
+    type: string
+    meta:
+      interface: input
+      required: true
+      options:
+        trim: true
+      note: До 512 символов
+  - collection: documents
+    field: documentDate
+    type: date
+    meta:
+      interface: date
+  - collection: documents
+    field: sort
+    type: integer
+    meta:
+      interface: input
+
+  - collection: news_articles
+    field: id
+    type: integer
+    schema:
+      is_primary_key: true
+      has_auto_increment: true
+  - collection: news_articles
+    field: title
+    type: string
+    meta:
+      interface: input
+      required: true
+  - collection: news_articles
+    field: excerpt
+    type: text
+    meta:
+      interface: textarea
+  - collection: news_articles
+    field: published_at
+    type: datetime
+    meta:
+      interface: datetime
+  - collection: news_articles
+    field: sort
+    type: integer
+    meta:
+      interface: input
+
+  - collection: contacts
+    field: address
+    type: string
+    meta:
+      interface: input
+  - collection: contacts
+    field: phone
+    type: string
+    meta:
+      interface: input
+  - collection: contacts
+    field: email
+    type: string
+    meta:
+      interface: input
+  - collection: contacts
+    field: schedule
+    type: text
+    meta:
+      interface: textarea
+  - collection: contacts
+    field: lat
+    type: decimal
+    meta:
+      interface: input
+  - collection: contacts
+    field: lng
+    type: decimal
+    meta:
+      interface: input
+
+relations: []
