@@ -2,15 +2,24 @@
 
 error() {
   echo "$*" >&2
-  exit 1
 }
 
-if [ -z "${TRAEFIK_EMAIL:-}" ]; then
-  error "TRAEFIK_EMAIL must be set for ACME registration."
-fi
+require_var() {
+  var_name=$1
+  shift
+  if [ -z "$1" ]; then
+    error "$var_name must be set for ACME registration."
+    exit 1
+  fi
+}
+
+require_var "TRAEFIK_EMAIL" "${TRAEFIK_EMAIL:-}"
 
 if [ ! -f /acme.json ]; then
-  touch /acme.json || error "Failed to create /acme.json"
+  if ! touch /acme.json; then
+    error "Failed to create /acme.json"
+    exit 1
+  fi
 fi
 chmod 600 /acme.json 2>/dev/null || true
 
@@ -38,6 +47,7 @@ case "$challenge" in
   dns)
     if [ -z "${TRAEFIK_DNS_PROVIDER:-}" ]; then
       error "TRAEFIK_DNS_PROVIDER must be set when TRAEFIK_ACME_CHALLENGE=dns."
+      exit 1
     fi
     set -- "$@" \
       --certificatesresolvers.le.acme.dnschallenge=true \
@@ -54,6 +64,7 @@ case "$challenge" in
     ;;
   *)
     error "Unknown TRAEFIK_ACME_CHALLENGE '$challenge'. Expected http, tls, or dns."
+    exit 1
     ;;
 esac
 
