@@ -60,6 +60,7 @@ cd AZ_work/uks2
    ```bash
    docker compose exec postgres psql -U "$DATABASE_USERNAME" -d "$DATABASE_NAME" -c "ALTER USER \"$DATABASE_USERNAME\" WITH PASSWORD '$DATABASE_PASSWORD';"
    ```
+   Если вы запускаете генератор через `sudo` и получаете ответ `Error: ENOENT: no such file or directory, uv_cwd`, выполните команду от своего пользователя (без `sudo`). Либо запустите `sudo bash -c 'cd /opt/AZ_work/uks2 && node scripts/generate-env.js --force'`, заменив путь на фактическое расположение каталога `uks2` — так root сначала перейдёт в нужную директорию и ошибка пропадёт.
 
 2. Откройте `.env` и настройте домены и URL:
    - `TRAEFIK_SITE_DOMAIN=uks.delightsoft.ru`

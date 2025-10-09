@@ -34,6 +34,7 @@ uks2/
    ```bash
    docker compose exec postgres psql -U "$DATABASE_USERNAME" -d "$DATABASE_NAME" -c "ALTER USER \"$DATABASE_USERNAME\" WITH PASSWORD '$DATABASE_PASSWORD';"
    ```
+   > ⚠️ Если команда выполняется через `sudo` и вы видите `Error: ENOENT: no such file or directory, uv_cwd`, значит root-пользователь не может обратиться к текущему каталогу. Запустите генератор от обычного пользователя (без `sudo`) либо выполните `sudo bash -c 'cd /opt/AZ_work/uks2 && node scripts/generate-env.js --force'`, подставив фактический путь до каталога `uks2`.
 2. Добавьте в `/etc/hosts` записи для Traefik (пример):
    ```
    127.0.0.1 uks2.localhost cms.uks2.localhost
