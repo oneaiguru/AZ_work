@@ -49,6 +49,7 @@ const secrets = new Map(
     DIRECTUS_KEY: () => randomUrlSafe(48),
     DIRECTUS_SECRET: () => randomUrlSafe(48),
     DATABASE_PASSWORD: () => randomAlphaNumeric(24),
+    PGADMIN_DEFAULT_PASSWORD: () => randomAlphaNumeric(24),
     MINIO_ROOT_USER: () => randomAlphaNumeric(20),
     MINIO_ROOT_PASSWORD: () => randomAlphaNumeric(40),
   })
