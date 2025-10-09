@@ -103,6 +103,8 @@ services:
       - traefik.enable=true
       - traefik.http.routers.uks2-directus.rule=Host(`${TRAEFIK_CMS_DOMAIN}`)
       - traefik.http.routers.uks2-directus.entrypoints=web
+      - traefik.http.middlewares.uks2-directus-https-redirect.redirectscheme.scheme=https
+      - traefik.http.routers.uks2-directus.middlewares=uks2-directus-https-redirect
       - traefik.http.routers.uks2-directus-secure.rule=Host(`${TRAEFIK_CMS_DOMAIN}`)
       - traefik.http.routers.uks2-directus-secure.entrypoints=websecure
       - traefik.http.routers.uks2-directus-secure.tls=true
@@ -129,6 +131,8 @@ services:
       - traefik.enable=true
       - traefik.http.routers.uks2-frontend.rule=Host(`${TRAEFIK_SITE_DOMAIN}`)
       - traefik.http.routers.uks2-frontend.entrypoints=web
+      - traefik.http.middlewares.uks2-frontend-https-redirect.redirectscheme.scheme=https
+      - traefik.http.routers.uks2-frontend.middlewares=uks2-frontend-https-redirect
       - traefik.http.routers.uks2-frontend-secure.rule=Host(`${TRAEFIK_SITE_DOMAIN}`)
       - traefik.http.routers.uks2-frontend-secure.entrypoints=websecure
       - traefik.http.routers.uks2-frontend-secure.tls=true

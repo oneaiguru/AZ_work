@@ -104,6 +104,7 @@ docker compose logs -f directus
 - `https://cms.uks.delightsoft.ru/admin` — панель Directus
 - `https://cms.uks.delightsoft.ru/items/...` — REST API Directus
 - `https://cms.uks.delightsoft.ru/graphql` — GraphQL API
+- Любые обращения по `http://` автоматически перенаправляются на HTTPS Traefik.
 
 > Первое обращение к доменам может занять 30–60 секунд, пока Traefik получает сертификат. До завершения процедуры браузер может показывать ошибку 404/502 или предупреждение о небезопасном соединении — дождитесь окончания выдачи сертификата и перезагрузите страницу.
 

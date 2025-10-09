@@ -70,6 +70,7 @@ docker compose up --build
 Сервисы и точки входа:
 - `https://uks.delightsoft.ru` — публичный домен фронтенда через Traefik
 - `https://cms.uks.delightsoft.ru` — Directus (REST, GraphQL, админка)
+- `http://` запросы на оба домена автоматически перенаправляются на HTTPS.
 - `https://uks2.localhost` / `https://cms.uks2.localhost` — локальная среда (при замене доменов в `.env`)
 - `http://localhost:8055` — прямой доступ к Directus (в обход Traefik)
 - `http://localhost:9001` — MinIO console (логин/пароль из `.env`)
