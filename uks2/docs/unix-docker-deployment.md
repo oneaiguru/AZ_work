@@ -104,7 +104,7 @@ docker compose pull
 NODE_ENV=production docker compose up -d --build
 ```
 
-Команда соберёт образ фронтенда, скачает Directus, Traefik, PostgreSQL, Redis и MinIO, затем запустит их в фоне. Проверить статус можно так:
+Команда соберёт образ фронтенда, скачает Directus, Traefik, PostgreSQL, Redis и MinIO, затем запустит их в фоне. Все сервисы настроены с политикой `restart: unless-stopped`, поэтому после перезагрузки Docker Engine или самого сервера они автоматически поднимутся заново. Проверить статус можно так:
 ```bash
 docker compose ps
 docker compose logs -f traefik

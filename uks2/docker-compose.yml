@@ -147,6 +147,7 @@ services:
   frontend:
     build:
       context: ./frontend
+    restart: unless-stopped
     env_file:
       - .env
     environment:

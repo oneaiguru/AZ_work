@@ -223,6 +223,8 @@ docker compose exec minio mc mb -p local/$MINIO_BUCKET_PRIVATE
 
 1. Подготовить `.env` с боевыми доменами, S3 и SMTP.
 2. Запустить `docker compose up -d` на сервере с открытыми портами 80/443.
+   Все сервисы в `docker-compose.yml` настроены с политикой `restart: unless-stopped`, поэтому после перезагрузки Docker Engine
+   или самого сервера контейнеры автоматически восстановятся.
 3. Настроить DNS на домен (`uks2.example.com`, `cms.uks2.example.com`).
 4. Создать администратора Directus и заполнить контент через админку.
 5. Запустить интеграционные тесты (линтер, e2e) и включить мониторинг Traefik/Directus.
