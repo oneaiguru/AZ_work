@@ -12,11 +12,19 @@ services:
     ports:
       - "80:80"
       - "443:443"
+      - "8080:8080"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./ops/traefik/acme.json:/acme.json
       - ./ops/traefik/traefik.yml:/traefik.yml:ro
       - ./ops/traefik/start-traefik.sh:/start-traefik.sh:ro
+    environment:
+      TRAEFIK_ENTRYPOINTS_HTTP_ADDRESS: "${TRAEFIK_ENTRYPOINTS_HTTP_ADDRESS:-:80}"
+      TRAEFIK_ENTRYPOINTS_HTTPS_ADDRESS: "${TRAEFIK_ENTRYPOINTS_HTTPS_ADDRESS:-:443}"
+      TRAEFIK_PROVIDERS_DOCKER_ENDPOINT: "${TRAEFIK_PROVIDERS_DOCKER_ENDPOINT:-unix:///var/run/docker.sock}"
+      TRAEFIK_CERTIFICATES_ACME_EMAIL: "${TRAEFIK_CERTIFICATES_ACME_EMAIL:-}"
+      TRAEFIK_CERTIFICATES_ACME_STORAGE: "${TRAEFIK_CERTIFICATES_ACME_STORAGE:-/acme.json}"
+      TRAEFIK_LOG_LEVEL: "${TRAEFIK_LOG_LEVEL:-INFO}"
 
   postgres:
     image: postgres:16-alpine

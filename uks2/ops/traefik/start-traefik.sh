@@ -27,7 +27,14 @@ strip_protocol() {
   echo "$value"
 }
 
-if [ -z "${TRAEFIK_EMAIL:-}" ]; then
+http_address="${TRAEFIK_ENTRYPOINTS_HTTP_ADDRESS:-:80}"
+https_address="${TRAEFIK_ENTRYPOINTS_HTTPS_ADDRESS:-:443}"
+docker_endpoint="${TRAEFIK_PROVIDERS_DOCKER_ENDPOINT:-unix:///var/run/docker.sock}"
+log_level="${TRAEFIK_LOG_LEVEL:-INFO}"
+acme_storage="${TRAEFIK_CERTIFICATES_ACME_STORAGE:-/acme.json}"
+acme_email="${TRAEFIK_CERTIFICATES_ACME_EMAIL:-${TRAEFIK_EMAIL:-}}"
+
+if [ -z "$acme_email" ]; then
   fallback_domain=""
   for candidate in "${TRAEFIK_SITE_DOMAIN:-}" "${TRAEFIK_CMS_DOMAIN:-}"; do
     if [ -n "$candidate" ]; then
@@ -40,28 +47,42 @@ if [ -z "${TRAEFIK_EMAIL:-}" ]; then
     fallback_domain=example.com
   fi
 
-  TRAEFIK_EMAIL="letsencrypt@${fallback_domain}"
-  warn "TRAEFIK_EMAIL is not set. Using fallback '${TRAEFIK_EMAIL}'. Configure TRAEFIK_EMAIL with a monitored inbox to receive Let's Encrypt expiry notices."
+  acme_email="letsencrypt@${fallback_domain}"
+  warn "TRAEFIK_CERTIFICATES_ACME_EMAIL is not set. Using fallback '${acme_email}'. Configure TRAEFIK_CERTIFICATES_ACME_EMAIL (or legacy TRAEFIK_EMAIL) with a monitored inbox to receive Let's Encrypt expiry notices."
 fi
 
-if [ ! -f /acme.json ]; then
-  if ! touch /acme.json; then
-    error "Failed to create /acme.json"
+acme_dir=$(dirname "$acme_storage")
+if [ ! -d "$acme_dir" ]; then
+  if ! mkdir -p "$acme_dir"; then
+    error "Failed to create directory '$acme_dir' for ACME storage"
     exit 1
   fi
 fi
-chmod 600 /acme.json 2>/dev/null || true
+if [ ! -f "$acme_storage" ]; then
+  if ! touch "$acme_storage"; then
+    error "Failed to create $acme_storage"
+    exit 1
+  fi
+fi
+chmod 600 "$acme_storage" 2>/dev/null || true
 
 challenge="${TRAEFIK_ACME_CHALLENGE:-http}"
 challenge=$(printf '%s' "$challenge" | tr '[:upper:]' '[:lower:]')
 
 set -- traefik \
+  --configFile=/traefik.yml \
   --providers.docker=true \
+  "--providers.docker.endpoint=${docker_endpoint}" \
   --providers.docker.exposedbydefault=false \
-  --entrypoints.web.address=:80 \
-  --entrypoints.websecure.address=:443 \
-  --certificatesresolvers.le.acme.email="${TRAEFIK_EMAIL}" \
-  --certificatesresolvers.le.acme.storage=/acme.json
+  "--log.level=${log_level}" \
+  "--entrypoints.web.address=${http_address}" \
+  --entrypoints.web.http.redirections.entrypoint.to=websecure \
+  --entrypoints.web.http.redirections.entrypoint.scheme=https \
+  "--entrypoints.websecure.address=${https_address}" \
+  --entrypoints.websecure.http.tls=true \
+  --entrypoints.websecure.http.tls.certresolver=le \
+  "--certificatesresolvers.le.acme.email=${acme_email}" \
+  "--certificatesresolvers.le.acme.storage=${acme_storage}"
 
 case "$challenge" in
   http)
