@@ -37,9 +37,9 @@ uks2/
    > ⚠️ Если команда выполняется через `sudo` и вы видите `Error: ENOENT: no such file or directory, uv_cwd`, значит root-пользователь не может обратиться к текущему каталогу. Запустите генератор от обычного пользователя (без `sudo`) либо выполните `sudo bash -c 'cd /opt/AZ_work/uks2 && node scripts/generate-env.js --force'`, подставив фактический путь до каталога `uks2`.
 2. Добавьте в `/etc/hosts` записи для Traefik (пример):
    ```
-   127.0.0.1 uks2.localhost cms.uks2.localhost
+   127.0.0.1 uks2.localhost cms.uks2.localhost db.uks2.localhost
    ```
-3. При необходимости скорректируйте значения `TRAEFIK_SITE_DOMAIN`, `TRAEFIK_CMS_DOMAIN`, `NEXT_PUBLIC_CMS_URL` и `NEXT_PUBLIC_SITE_URL` под собственный домен/порты. В боевой конфигурации сервисы доступны по адресу `https://uks.delightsoft.ru` (фронтенд) и `https://cms.uks.delightsoft.ru` (Directus), поэтому `.env.example` уже содержит эти значения. Для локальной разработки замените их на `uks2.localhost` и `cms.uks2.localhost`. При работе через Traefik обязательно укажите те же домены в `DIRECTUS_PUBLIC_URL` и `DIRECTUS_COOKIE_DOMAIN` — иначе браузер не сохранит cookie сеанса и вход в Directus завершится ошибкой 400 на `/auth/login`. Если вы запускаете Directus без HTTPS, временно установите `DIRECTUS_REFRESH_COOKIE_SECURE=false`.
+3. При необходимости скорректируйте значения `TRAEFIK_SITE_DOMAIN`, `TRAEFIK_CMS_DOMAIN`, `TRAEFIK_DB_DOMAIN`, `NEXT_PUBLIC_CMS_URL` и `NEXT_PUBLIC_SITE_URL` под собственный домен/порты. В боевой конфигурации сервисы доступны по адресу `https://uks.delightsoft.ru` (фронтенд), `https://cms.uks.delightsoft.ru` (Directus) и `https://db.uks.delightsoft.ru` (pgAdmin), поэтому `.env.example` уже содержит эти значения. Для локальной разработки замените их на `uks2.localhost`, `cms.uks2.localhost` и `db.uks2.localhost`. При работе через Traefik обязательно укажите те же домены в `DIRECTUS_PUBLIC_URL` и `DIRECTUS_COOKIE_DOMAIN` — иначе браузер не сохранит cookie сеанса и вход в Directus завершится ошибкой 400 на `/auth/login`. Если вы запускаете Directus без HTTPS, временно установите `DIRECTUS_REFRESH_COOKIE_SECURE=false`.
    По умолчанию Traefik слушает `:80` и `:443` (переменные `TRAEFIK_ENTRYPOINTS_HTTP_ADDRESS` и `TRAEFIK_ENTRYPOINTS_HTTPS_ADDRESS`) и сохраняет сертификаты в `/acme.json` (`TRAEFIK_CERTIFICATES_ACME_STORAGE`). Измените эти значения, если требуется нестандартный проброс портов или иной путь хранения, и не забудьте скорректировать bind-mount `./ops/traefik/acme.json:/acme.json` в `docker-compose.yml`, если используете другой путь.
 
 > ℹ️ Если переменная `TRAEFIK_CERTIFICATES_ACME_EMAIL` (или устаревшая `TRAEFIK_EMAIL`) останется пустой, стартовый скрипт Traefik не прервёт запуск и автоматически подставит адрес вида `letsencrypt@<ваш_домен>`. Это удобно для тестов, но для продакшн-окружений обязательно задайте рабочий почтовый ящик, чтобы получать напоминания Let’s Encrypt о продлении сертификатов.
@@ -94,8 +94,10 @@ docker compose up --build
 Сервисы и точки входа:
 - `https://uks.delightsoft.ru` — публичный домен фронтенда через Traefik
 - `https://cms.uks.delightsoft.ru` — Directus (REST, GraphQL, админка)
+- `https://db.uks.delightsoft.ru` — pgAdmin (PostgreSQL UI, вход по `PGADMIN_DEFAULT_EMAIL` / `PGADMIN_DEFAULT_PASSWORD`)
 - `http://` запросы на оба домена автоматически перенаправляются на HTTPS.
 - `https://uks2.localhost` / `https://cms.uks2.localhost` — локальная среда (при замене доменов в `.env`)
+- `https://db.uks2.localhost` — pgAdmin в локальной среде
 - `http://localhost:8055` — прямой доступ к Directus (в обход Traefik)
 - `http://localhost:8080` — Traefik dashboard (для локальной отладки)
 - `http://localhost:9001` — MinIO console (логин/пароль из `.env`)

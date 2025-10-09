@@ -65,6 +65,7 @@ cd AZ_work/uks2
 2. Откройте `.env` и настройте домены и URL:
   - `TRAEFIK_SITE_DOMAIN=uks.delightsoft.ru`
   - `TRAEFIK_CMS_DOMAIN=cms.uks.delightsoft.ru`
+  - `TRAEFIK_DB_DOMAIN=db.uks.delightsoft.ru`
   - `TRAEFIK_ENTRYPOINTS_HTTP_ADDRESS=:80` (порт HTTP, нужен для HTTP-01 challenge)
   - `TRAEFIK_ENTRYPOINTS_HTTPS_ADDRESS=:443` (порт HTTPS, укажите другой при нестандартном пробросе)
   - `NEXT_PUBLIC_SITE_URL=https://uks.delightsoft.ru`
@@ -81,7 +82,7 @@ cd AZ_work/uks2
 
 > ℹ️ Если `TRAEFIK_CERTIFICATES_ACME_EMAIL` (или устаревшая `TRAEFIK_EMAIL`) оставить пустой, Traefik подставит резервный адрес вида `letsencrypt@<ваш_домен>` и продолжит запуск. Это полезно для первичной проверки конфигурации, но в бою обязательно пропишите рабочий ящик — Let’s Encrypt присылает на него уведомления о скором истечении сертификата.
 
-3. При необходимости смените `DIRECTUS_ADMIN_EMAIL` / `DIRECTUS_ADMIN_PASSWORD` и другие параметры (SMTP, MinIO бакеты, настройки кэша).
+3. При необходимости смените `DIRECTUS_ADMIN_EMAIL` / `DIRECTUS_ADMIN_PASSWORD`, `PGADMIN_DEFAULT_EMAIL` / `PGADMIN_DEFAULT_PASSWORD` и другие параметры (SMTP, MinIO бакеты, настройки кэша).
 
 ## 4. Настройка Traefik и HTTPS
 
@@ -115,6 +116,7 @@ docker compose logs -f directus
 - `https://cms.uks.delightsoft.ru/admin` — панель Directus
 - `https://cms.uks.delightsoft.ru/items/...` — REST API Directus
 - `https://cms.uks.delightsoft.ru/graphql` — GraphQL API
+- `https://db.uks.delightsoft.ru` — pgAdmin (PostgreSQL UI)
 - Любые обращения по `http://` автоматически перенаправляются на HTTPS Traefik.
 
 > Первое обращение к доменам может занять 30–60 секунд, пока Traefik получает сертификат. До завершения процедуры браузер может показывать ошибку 404/502 или предупреждение о небезопасном соединении — дождитесь окончания выдачи сертификата и перезагрузите страницу.
@@ -145,6 +147,7 @@ docker compose logs -f directus
 Постоянные данные хранятся в docker volumes:
 - `postgres_data` — база Directus
 - `minio_data` — файлы и медиа
+- `pgadmin_data` — пользовательские настройки pgAdmin (подключения, избранные запросы)
 
 Примеры бэкапа:
 ```bash
