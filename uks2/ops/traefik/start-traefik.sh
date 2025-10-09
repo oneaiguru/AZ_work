@@ -1,5 +1,5 @@
 #!/bin/sh
-set -eu
+set -e
 
 if [ -z "${TRAEFIK_EMAIL:-}" ]; then
   echo "TRAEFIK_EMAIL must be set for ACME registration." >&2
