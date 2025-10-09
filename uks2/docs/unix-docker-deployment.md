@@ -6,7 +6,7 @@
 
 - 64‑битная ОС (Ubuntu 22.04+, Debian 12+, Rocky Linux 9 или аналогичная).
 - Права sudo и доступ по SSH.
-- Открытые порты 80 и 443 из внешней сети (для HTTP-01 challenge и HTTPS).
+- Открытые порты 80 и 443 из внешней сети (для HTTP-01 и HTTPS). Если 80 заблокирован и нет возможности его открыть, переключите `TRAEFIK_ACME_CHALLENGE` в режим `tls` или `dns` (см. раздел про Traefik ниже).
 - Установленные Docker Engine 24+ и Docker Compose Plugin 2.24+.
 - Зарегистрированные домены, которые будут вести на фронтенд и CMS (для боевого окружения используются `uks.delightsoft.ru` и `cms.uks.delightsoft.ru`).
 - Аккаунт на почте для уведомлений Let's Encrypt (адрес задаётся переменной `TRAEFIK_EMAIL`).
@@ -72,15 +72,13 @@ cd AZ_work/uks2
    - `DIRECTUS_COOKIE_DOMAIN=.uks.delightsoft.ru`
    - `DIRECTUS_REFRESH_COOKIE_SECURE=true`
    - `TRAEFIK_EMAIL=devops@example.ru` (рабочая почта для уведомлений Let’s Encrypt)
+   - `TRAEFIK_ACME_CHALLENGE=http` (смените на `tls` или `dns`, если порт 80 недоступен)
 
 3. При необходимости смените `DIRECTUS_ADMIN_EMAIL` / `DIRECTUS_ADMIN_PASSWORD` и другие параметры (SMTP, MinIO бакеты, настройки кэша).
 
 ## 4. Настройка Traefik и HTTPS
 
-1. Файл `ops/traefik/acme.json` хранит сертификаты. До первого запуска задайте права:
-   ```bash
-   chmod 600 ops/traefik/acme.json
-   ```
+1. Стартовый скрипт Traefik автоматически создаёт `ops/traefik/acme.json` и выставляет права `600`, поэтому вручную задавать разрешения больше не нужно. Если вы удаляли файл, он появится снова при следующем запуске контейнера.
 2. Убедитесь, что DNS-записи доменов (`A`/`AAAA`) указывают на IP сервера. Для поддоменов CMS добавьте запись `cms.uks.delightsoft.ru` -> `X.X.X.X` и при необходимости укажите CNAME на `uks.delightsoft.ru`, если используется один и тот же IP.
 3. Если сервер находится за файрволом, откройте порты 80 и 443:
    ```bash
@@ -88,7 +86,7 @@ cd AZ_work/uks2
    sudo ufw allow 443/tcp
    sudo ufw reload
    ```
-4. Traefik автоматически выпустит сертификаты через HTTP-01 challenge при первом обращении к доменам. Следите за логами контейнера `traefik`.
+4. Traefik автоматически выпустит сертификаты при первом обращении к доменам. Используемый challenge определяется переменной `TRAEFIK_ACME_CHALLENGE` (`http`, `tls` или `dns`). Следите за логами контейнера `traefik`.
 
 ## 5. Развёртывание контейнеров
 
@@ -155,7 +153,7 @@ sudo tar czf minio-data-$(date +%F).tar.gz -C /var/lib/docker/volumes/ $(docker 
 ## 9. Устранение неполадок
 
 - **HTTP 400 при логине в Directus** — проверьте `DIRECTUS_PUBLIC_URL` и `DIRECTUS_COOKIE_DOMAIN`, они должны совпадать с фактическим доменом.
-- **Traefik не получает сертификат / браузер пишет `ERR_CERT_AUTHORITY_INVALID`** — убедитесь в доступности порта 80 снаружи и корректности DNS. Проверьте логи `docker compose logs traefik`, права на `ops/traefik/acme.json` и при необходимости перевыпустите сертификат по инструкции [https-troubleshooting.md](https-troubleshooting.md).
+- **Traefik не получает сертификат / браузер пишет `ERR_CERT_AUTHORITY_INVALID`** — убедитесь в доступности порта 80 (для HTTP-01) или установите `TRAEFIK_ACME_CHALLENGE=tls`, если возможен только 443. Проверьте DNS-записи, логи `docker compose logs traefik` и следуйте инструкции [https-troubleshooting.md](https-troubleshooting.md). Скрипт запуска Traefik автоматически приводит `ops/traefik/acme.json` к нужным правам, поэтому достаточно удалить файл и перезапустить Traefik, чтобы форсировать повторный выпуск.
 - **Directus не стартует из-за схемы** — примените снапшот вручную либо удалите проблемные коллекции через CLI.
 - **Directus перезапускается с ошибкой `password authentication failed for user "uks2"`** — пароль в `.env` не совпадает с тем,
   что хранится в PostgreSQL. Алгоритм восстановления:

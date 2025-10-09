@@ -23,21 +23,12 @@ curl -I http://uks.delightsoft.ru/.well-known/acme-challenge/ping
 
 Обе команды должны возвращать IP сервера и HTTP 404/401 от Traefik. Если `curl` зависает или возвращает другую страницу, проверьте DNS-записи `A`/`AAAA` и отключите сторонние прокси (например, режим «оранжевой облачки» в Cloudflare) на время выпуска сертификата.
 
-## 3. Проверить права доступа к `acme.json`
+## 3. Сбросить `acme.json`
 
-Traefik записывает сертификаты в `ops/traefik/acme.json`. Файл должен существовать и иметь права `600`.
-
-```bash
-ls -l ops/traefik/acme.json
-chmod 600 ops/traefik/acme.json
-```
-
-Если файл пустой или повреждён, удалите его и перезапустите Traefik — он создаст новый и попытается выпустить сертификат повторно.
+Traefik записывает сертификаты в `ops/traefik/acme.json`. Запускной скрипт автоматически создаёт файл и выставляет права `600`, поэтому вручную ничего настраивать не требуется. Если файл пустой или повреждён, удалите его и перезапустите Traefik — новый `acme.json` появится автоматически и Let’s Encrypt повторит запрос.
 
 ```bash
-rm ops/traefik/acme.json
-cp /dev/null ops/traefik/acme.json
-chmod 600 ops/traefik/acme.json
+rm -f ops/traefik/acme.json
 docker compose restart traefik
 ```
 
@@ -53,25 +44,31 @@ curl -I https://uks.delightsoft.ru --resolve uks.delightsoft.ru:443:127.0.0.1
 
 Если сертификат ещё не получен, Traefik продолжит попытки. Когда лог содержит `Server responded with a certificate`, откройте сайт в браузере и проверьте цепочку сертификатов.
 
-## 5. Альтернативы при блокировке HTTP-01
+## 5. Выбрать другой ACME challenge
 
-Если публичный порт 80 заблокирован (например, корпоративный провайдер), переключитесь на DNS-01 challenge. Добавьте в `.env` ключи Cloudflare и раскомментируйте параметры (пример):
+Переменная `TRAEFIK_ACME_CHALLENGE` управляет тем, как Traefik подтверждает домен:
+
+- `http` — HTTP-01 (порт 80 должен быть доступен из интернета).
+- `tls` — TLS-ALPN-01 (сертификат выдаётся через порт 443; подходит, если 80 закрыт провайдером или файрволом).
+- `dns` — DNS-01 (требуются учётные данные API DNS-провайдера).
+
+Чтобы переключиться, отредактируйте `.env` и перезапустите Traefik:
+
+```bash
+sed -i "s/^TRAEFIK_ACME_CHALLENGE=.*/TRAEFIK_ACME_CHALLENGE=tls/" .env
+docker compose up -d traefik
+```
+
+Для DNS-01 дополнительно укажите провайдера и токен API. Пример для Cloudflare:
 
 ```ini
+TRAEFIK_ACME_CHALLENGE=dns
 TRAEFIK_DNS_PROVIDER=cloudflare
-TRAEFIK_CF_DNS_API_TOKEN=... # токен с правами Zone.DNS.Edit
+CF_API_TOKEN=<токен с правами Zone.DNS.Edit>
+TRAEFIK_EXTRA_ACME_ARGS=--certificatesresolvers.le.acme.dnschallenge.disablePropagationCheck=true
 ```
 
-Затем расширьте секцию `command:` в `docker-compose.yml`:
-
-```yaml
-    command:
-      - --certificatesresolvers.le.acme.dnschallenge=true
-      - --certificatesresolvers.le.acme.dnschallenge.provider=${TRAEFIK_DNS_PROVIDER}
-      - --certificatesresolvers.le.acme.dnschallenge.disablepropagationcheck=true
-```
-
-DNS-01 позволяет выпускать сертификаты даже при закрытом порте 80, но требует управления DNS через API-провайдера.
+Переменную `CF_API_TOKEN` (или `CLOUDFLARE_API_TOKEN`) передайте контейнеру Traefik через `.env`, Docker Secrets или `docker compose --env-file`. Аналогичным образом настраиваются и другие провайдеры (AWS Route 53, DigitalOcean, Yandex DNS и т. д.).
 
 ## 6. Проверить установленный сертификат
 
