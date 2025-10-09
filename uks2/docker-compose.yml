@@ -2,7 +2,13 @@ services:
   traefik:
     image: traefik:v3.1
     restart: unless-stopped
-    entrypoint: ["/bin/sh", "/start-traefik.sh"]
+    entrypoint:
+      - "/bin/sh"
+      - "-c"
+      - >-
+        sed 's/\r$//' /start-traefik.sh > /tmp/start-traefik.sh &&
+        chmod +x /tmp/start-traefik.sh &&
+        exec /bin/sh /tmp/start-traefik.sh
     ports:
       - "80:80"
       - "443:443"
