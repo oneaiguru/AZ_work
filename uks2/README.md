@@ -29,8 +29,11 @@ uks2/
    ```
    Скрипт создаст `uks2/.env` на основе `.env.example`. При повторном запуске добавьте `--force`, чтобы перезаписать значения, —
    при этом текущий `DATABASE_PASSWORD` будет сохранён, чтобы не потерять доступ к существующей базе. Если нужно сгенерировать
-   новый пароль и обновить его в PostgreSQL вручную, используйте `node scripts/generate-env.js --force --rotate-db-password` и
-   выполните `docker compose exec postgres psql -U postgres -c "ALTER USER \"$DATABASE_USERNAME\" WITH PASSWORD '\"$DATABASE_PASSWORD\"';"`.
+   новый пароль, добавьте `--rotate-db-password`: скрипт попытается выполнить `ALTER USER` внутри контейнера PostgreSQL через
+   `docker compose exec`. Если Docker недоступен или контейнер не запущен, выполните команду вручную:
+   ```bash
+   docker compose exec postgres psql -U "$DATABASE_USERNAME" -d "$DATABASE_NAME" -c "ALTER USER \"$DATABASE_USERNAME\" WITH PASSWORD '$DATABASE_PASSWORD';"
+   ```
 2. Добавьте в `/etc/hosts` записи для Traefik (пример):
    ```
    127.0.0.1 uks2.localhost cms.uks2.localhost
@@ -83,7 +86,7 @@ docker compose up --build
 
 ### Продакшн на Unix-сервере
 
-Для пошаговой установки на Linux-сервере с публичным доменом и автоматическим выпуском TLS-сертификатов см. документ [docs/unix-docker-deployment.md](docs/unix-docker-deployment.md). В нём описаны требования, настройка DNS, генерация `.env`, подготовка Traefik и регулярное обслуживание контейнеров.
+Для пошаговой установки на Linux-сервере с публичным доменом и автоматическим выпуском TLS-сертификатов см. документ [docs/unix-docker-deployment.md](docs/unix-docker-deployment.md). В нём описаны требования, настройка DNS, генерация `.env`, подготовка Traefik и регулярное обслуживание контейнеров. Для разбора типовых ошибок (например, `password authentication failed for user "uks2"`) загляните в [docs/directus-troubleshooting.md](docs/directus-troubleshooting.md).
 
 ### Для чего нужен Redis
 

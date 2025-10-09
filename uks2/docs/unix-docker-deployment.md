@@ -55,7 +55,11 @@ cd AZ_work/uks2
    ```
    Скрипт создаст `uks2/.env` с уникальными ключами для Directus, PostgreSQL и MinIO. Существующий `DATABASE_PASSWORD`
    сохраняется, поэтому перегенерация `.env` не ломает доступ к базе. Чтобы сменить пароль и применить его к живой БД,
-   добавьте флаг `--rotate-db-password`, а затем выполните команду `docker compose exec postgres psql -U postgres -c "ALTER USER \"$DATABASE_USERNAME\" WITH PASSWORD '\"$DATABASE_PASSWORD\"';"`.
+   добавьте флаг `--rotate-db-password` — генератор попробует выполнить `ALTER USER` внутри работающего контейнера PostgreSQL.
+   Если Docker недоступен или база не запущена, выполните команду вручную:
+   ```bash
+   docker compose exec postgres psql -U "$DATABASE_USERNAME" -d "$DATABASE_NAME" -c "ALTER USER \"$DATABASE_USERNAME\" WITH PASSWORD '$DATABASE_PASSWORD';"
+   ```
 
 2. Откройте `.env` и настройте домены и URL:
    - `TRAEFIK_SITE_DOMAIN=uks.delightsoft.ru`
@@ -153,8 +157,19 @@ sudo tar czf minio-data-$(date +%F).tar.gz -C /var/lib/docker/volumes/ $(docker 
 - **HTTP 400 при логине в Directus** — проверьте `DIRECTUS_PUBLIC_URL` и `DIRECTUS_COOKIE_DOMAIN`, они должны совпадать с фактическим доменом.
 - **Traefik не получает сертификат** — убедитесь в доступности порта 80 снаружи и корректности DNS. В логах Traefik ищите сообщения ACME.
 - **Directus не стартует из-за схемы** — примените снапшот вручную либо удалите проблемные коллекции через CLI.
-- **Directus перезапускается с ошибкой `password authentication failed for user "uks2"`** — пароль в `.env` не совпадает с
-  тем, что записан в PostgreSQL. Восстановите прежнее значение или выполните `docker compose exec postgres psql -U postgres -c "ALTER USER \"$DATABASE_USERNAME\" WITH PASSWORD '\"$DATABASE_PASSWORD\"';"`.
+- **Directus перезапускается с ошибкой `password authentication failed for user "uks2"`** — пароль в `.env` не совпадает с тем,
+  что хранится в PostgreSQL. Алгоритм восстановления:
+  1. Убедитесь, что контейнер PostgreSQL запущен: `docker compose up -d postgres`.
+  2. Найдите в текущем `.env` значения `DATABASE_USERNAME`, `DATABASE_NAME`, `DATABASE_PASSWORD`.
+  3. Экранируйте новый пароль и выполните `ALTER USER`, чтобы установить значение из `.env`:
+     ```bash
+     SQL_PASSWORD=$(printf "%s" "$DATABASE_PASSWORD" | sed "s/'/''/g")
+     PGPASSWORD='<старый_пароль>' docker compose exec -T postgres \
+       psql -U "$DATABASE_USERNAME" -d "$DATABASE_NAME" \
+       -c "ALTER USER \"$DATABASE_USERNAME\" WITH PASSWORD '$SQL_PASSWORD'"
+     ```
+  4. Перезапустите Directus: `docker compose restart directus` и проверьте логи `docker compose logs -f directus`.
+  5. Подробная инструкция с дополнительными сценариями приведена в [docs/directus-troubleshooting.md](directus-troubleshooting.md).
 - **Нет доступа к MinIO** — проверьте, что бакеты созданы и креденшелы из `.env` совпадают.
 
 После выполнения шагов сайт будет обслуживаться по HTTPS с автоматическим продлением сертификатов и готовой CMS для управления контентом.
