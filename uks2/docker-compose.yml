@@ -2,7 +2,7 @@ services:
   traefik:
     image: traefik:v3.1
     restart: unless-stopped
-    entrypoint: ["/start-traefik.sh"]
+    entrypoint: ["/bin/sh", "/start-traefik.sh"]
     ports:
       - "80:80"
       - "443:443"
