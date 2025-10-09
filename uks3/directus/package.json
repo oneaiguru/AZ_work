@@ -1,0 +1,9 @@
+{
+  "name": "uks3-directus",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "directus": "11.0.2"
+  }
+}
