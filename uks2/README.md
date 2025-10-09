@@ -136,6 +136,14 @@ docker compose exec minio mc mb -p local/$MINIO_BUCKET_PRIVATE
 ```
 Затем включите S3-хранилище в Directus (`Settings → Storage`) и укажите MinIO как источник.
 
+#### Устранение ошибок сканера MinIO
+
+При некорректном завершении работы локального хранилища MinIO может появляться сообщение `has incomplete body` о повреждённых
+файлах `.usage.json` или `.bloomcycle.bin` внутри каталога `.minio.sys/buckets`. Контейнер `minio` запускается через скрипт
+`ops/minio/start-minio.sh`, который автоматически удаляет эти временные файлы перед стартом сервера, чтобы сканер MinIO
+пересоздал их заново. Если ошибка повторяется, остановите стек и вручную очистите каталог `minio_data` или выполните
+`docker volume rm uks2_minio_data` перед повторным запуском.
+
 ## Работа с Directus
 
 - Snapshot схемы (`directus/snapshot.yaml`) описывает коллекции: `homepage`, `projects`, `procurements`, `documents`, `news_articles`, `contacts`, `about_values` и связи между ними.

@@ -179,5 +179,8 @@ sudo tar czf minio-data-$(date +%F).tar.gz -C /var/lib/docker/volumes/ $(docker 
   4. Перезапустите Directus: `docker compose restart directus` и проверьте логи `docker compose logs -f directus`.
   5. Подробная инструкция с дополнительными сценариями приведена в [docs/directus-troubleshooting.md](directus-troubleshooting.md).
 - **Нет доступа к MinIO** — проверьте, что бакеты созданы и креденшелы из `.env` совпадают.
+- **MinIO пишет `has incomplete body` по файлам `.usage.json` / `.bloomcycle.bin`** — после некорректной остановки могут повредиться
+  временные метаданные. При следующем запуске контейнер выполнит `ops/minio/start-minio.sh` и удалит эти файлы, чтобы MinIO
+  пересоздал их. Если сообщение остаётся, остановите стек и удалите локальный том `docker volume rm uks2_minio_data`.
 
 После выполнения шагов сайт будет обслуживаться по HTTPS с автоматическим продлением сертификатов и готовой CMS для управления контентом.
