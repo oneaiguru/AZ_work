@@ -40,8 +40,9 @@ uks2/
    127.0.0.1 uks2.localhost cms.uks2.localhost
    ```
 3. При необходимости скорректируйте значения `TRAEFIK_SITE_DOMAIN`, `TRAEFIK_CMS_DOMAIN`, `NEXT_PUBLIC_CMS_URL` и `NEXT_PUBLIC_SITE_URL` под собственный домен/порты. В боевой конфигурации сервисы доступны по адресу `https://uks.delightsoft.ru` (фронтенд) и `https://cms.uks.delightsoft.ru` (Directus), поэтому `.env.example` уже содержит эти значения. Для локальной разработки замените их на `uks2.localhost` и `cms.uks2.localhost`. При работе через Traefik обязательно укажите те же домены в `DIRECTUS_PUBLIC_URL` и `DIRECTUS_COOKIE_DOMAIN` — иначе браузер не сохранит cookie сеанса и вход в Directus завершится ошибкой 400 на `/auth/login`. Если вы запускаете Directus без HTTPS, временно установите `DIRECTUS_REFRESH_COOKIE_SECURE=false`.
+   По умолчанию Traefik слушает `:80` и `:443` (переменные `TRAEFIK_ENTRYPOINTS_HTTP_ADDRESS` и `TRAEFIK_ENTRYPOINTS_HTTPS_ADDRESS`) и сохраняет сертификаты в `/acme.json` (`TRAEFIK_CERTIFICATES_ACME_STORAGE`). Измените эти значения, если требуется нестандартный проброс портов или иной путь хранения, и не забудьте скорректировать bind-mount `./ops/traefik/acme.json:/acme.json` в `docker-compose.yml`, если используете другой путь.
 
-> ℹ️ Если переменная `TRAEFIK_EMAIL` останется пустой, стартовый скрипт Traefik не прервёт запуск и автоматически подставит адрес вида `letsencrypt@<ваш_домен>`. Это удобно для тестов, но для продакшн-окружений обязательно задайте рабочий почтовый ящик, чтобы получать напоминания Let’s Encrypt о продлении сертификатов.
+> ℹ️ Если переменная `TRAEFIK_CERTIFICATES_ACME_EMAIL` (или устаревшая `TRAEFIK_EMAIL`) останется пустой, стартовый скрипт Traefik не прервёт запуск и автоматически подставит адрес вида `letsencrypt@<ваш_домен>`. Это удобно для тестов, но для продакшн-окружений обязательно задайте рабочий почтовый ящик, чтобы получать напоминания Let’s Encrypt о продлении сертификатов.
 
 4. Выберите способ выпуска сертификатов Let’s Encrypt с помощью `TRAEFIK_ACME_CHALLENGE`:
    - `http` — классический HTTP-01 challenge (порт 80 должен быть доступен из интернета).
@@ -96,6 +97,7 @@ docker compose up --build
 - `http://` запросы на оба домена автоматически перенаправляются на HTTPS.
 - `https://uks2.localhost` / `https://cms.uks2.localhost` — локальная среда (при замене доменов в `.env`)
 - `http://localhost:8055` — прямой доступ к Directus (в обход Traefik)
+- `http://localhost:8080` — Traefik dashboard (для локальной отладки)
 - `http://localhost:9001` — MinIO console (логин/пароль из `.env`)
 - `redis://localhost:6379` — Redis для кеша Directus
 
