@@ -66,7 +66,6 @@ set -- traefik \
 case "$challenge" in
   http)
     set -- "$@" \
-      --certificatesresolvers.le.acme.httpchallenge=true \
       --certificatesresolvers.le.acme.httpchallenge.entrypoint=web
     ;;
   tls)

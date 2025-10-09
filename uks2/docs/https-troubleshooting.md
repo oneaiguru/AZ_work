@@ -10,7 +10,7 @@ docker compose logs -f traefik
 
 Ищите строки `legolog` / `acme` с ошибками. Типовые причины:
 
-- `TRAEFIK_EMAIL must be set for ACME registration` — Traefik не получил почтовый адрес для регистрации в Let's Encrypt. Убедитесь, что в `.env` задана переменная `TRAEFIK_EMAIL=ops@example.ru` (боевой, а не личный ящик) и перезапустите контейнер. Если вы уже обновили проект до версии со стартовым скриптом, который подставляет резервный адрес автоматически, но сообщение всё ещё появляется, значит контейнер запущен на старом образе — выполните `docker compose pull traefik && docker compose up -d traefik`, чтобы подхватить новую версию.
+- `Router uses a nonexistent certificate resolver` — контейнер запущен без статической конфигурации резолвера `le`. Убедитесь, что Traefik стартует через `ops/traefik/start-traefik.sh` (в логах должны появиться строки `certificatesresolvers.le.acme...`). Если Traefik начинался вручную или с устаревшим образов, перезапустите сервис: `docker compose pull traefik && docker compose up -d traefik`. После рестарта ошибка должна исчезнуть.
 - `acme: error: 403 :: urn:ietf:params:acme:error:unauthorized` — домен указывает не на этот сервер, либо Cloudflare/прокси подменяет ответ.
 - `acme: error: 429 :: too many requests` — превышен лимит Let's Encrypt (ожидайте час и повторите).
 - `failed to save certificates` — Traefik не может записать `ops/traefik/acme.json` из-за неверных прав.
