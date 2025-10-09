@@ -4,16 +4,45 @@ error() {
   echo "$*" >&2
 }
 
-require_var() {
-  var_name=$1
-  shift
-  if [ -z "$1" ]; then
-    error "$var_name must be set for ACME registration."
-    exit 1
-  fi
+warn() {
+  error "Warning: $*"
 }
 
-require_var "TRAEFIK_EMAIL" "${TRAEFIK_EMAIL:-}"
+strip_protocol() {
+  value=$1
+  value=${value#*://}
+  value=${value%%/*}
+  case "$value" in
+    *:*)
+      case "$value" in
+        \[*\]*)
+          : # IPv6 адрес в квадратных скобках — оставляем как есть
+          ;;
+        *)
+          value=${value%%:*}
+          ;;
+      esac
+      ;;
+  esac
+  echo "$value"
+}
+
+if [ -z "${TRAEFIK_EMAIL:-}" ]; then
+  fallback_domain=""
+  for candidate in "${TRAEFIK_SITE_DOMAIN:-}" "${TRAEFIK_CMS_DOMAIN:-}"; do
+    if [ -n "$candidate" ]; then
+      fallback_domain=$(strip_protocol "$candidate")
+      break
+    fi
+  done
+
+  if [ -z "$fallback_domain" ]; then
+    fallback_domain=example.com
+  fi
+
+  TRAEFIK_EMAIL="letsencrypt@${fallback_domain}"
+  warn "TRAEFIK_EMAIL is not set. Using fallback '${TRAEFIK_EMAIL}'. Configure TRAEFIK_EMAIL with a monitored inbox to receive Let's Encrypt expiry notices."
+fi
 
 if [ ! -f /acme.json ]; then
   if ! touch /acme.json; then

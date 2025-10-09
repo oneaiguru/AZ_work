@@ -75,6 +75,8 @@ cd AZ_work/uks2
    - `TRAEFIK_EMAIL=devops@example.ru` (рабочая почта для уведомлений Let’s Encrypt)
    - `TRAEFIK_ACME_CHALLENGE=http` (смените на `tls` или `dns`, если порт 80 недоступен)
 
+> ℹ️ Если `TRAEFIK_EMAIL` оставить пустым, Traefik подставит резервный адрес вида `letsencrypt@<ваш_домен>` и продолжит запуск. Это полезно для первичной проверки конфигурации, но в бою обязательно пропишите рабочий ящик — Let’s Encrypt присылает на него уведомления о скором истечении сертификата.
+
 3. При необходимости смените `DIRECTUS_ADMIN_EMAIL` / `DIRECTUS_ADMIN_PASSWORD` и другие параметры (SMTP, MinIO бакеты, настройки кэша).
 
 ## 4. Настройка Traefik и HTTPS

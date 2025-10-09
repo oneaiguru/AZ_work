@@ -41,6 +41,8 @@ uks2/
    ```
 3. При необходимости скорректируйте значения `TRAEFIK_SITE_DOMAIN`, `TRAEFIK_CMS_DOMAIN`, `NEXT_PUBLIC_CMS_URL` и `NEXT_PUBLIC_SITE_URL` под собственный домен/порты. В боевой конфигурации сервисы доступны по адресу `https://uks.delightsoft.ru` (фронтенд) и `https://cms.uks.delightsoft.ru` (Directus), поэтому `.env.example` уже содержит эти значения. Для локальной разработки замените их на `uks2.localhost` и `cms.uks2.localhost`. При работе через Traefik обязательно укажите те же домены в `DIRECTUS_PUBLIC_URL` и `DIRECTUS_COOKIE_DOMAIN` — иначе браузер не сохранит cookie сеанса и вход в Directus завершится ошибкой 400 на `/auth/login`. Если вы запускаете Directus без HTTPS, временно установите `DIRECTUS_REFRESH_COOKIE_SECURE=false`.
 
+> ℹ️ Если переменная `TRAEFIK_EMAIL` останется пустой, стартовый скрипт Traefik не прервёт запуск и автоматически подставит адрес вида `letsencrypt@<ваш_домен>`. Это удобно для тестов, но для продакшн-окружений обязательно задайте рабочий почтовый ящик, чтобы получать напоминания Let’s Encrypt о продлении сертификатов.
+
 4. Выберите способ выпуска сертификатов Let’s Encrypt с помощью `TRAEFIK_ACME_CHALLENGE`:
    - `http` — классический HTTP-01 challenge (порт 80 должен быть доступен из интернета).
    - `tls` — TLS-ALPN-01 challenge (сертификат выдаётся через порт 443; подходит, если 80 заблокирован провайдером или файрволом).
