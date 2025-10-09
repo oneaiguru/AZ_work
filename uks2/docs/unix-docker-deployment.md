@@ -9,7 +9,7 @@
 - Открытые порты 80 и 443 из внешней сети (для HTTP-01 и HTTPS). Если 80 заблокирован и нет возможности его открыть, переключите `TRAEFIK_ACME_CHALLENGE` в режим `tls` или `dns` (см. раздел про Traefik ниже).
 - Установленные Docker Engine 24+ и Docker Compose Plugin 2.24+.
 - Зарегистрированные домены, которые будут вести на фронтенд и CMS (для боевого окружения используются `uks.delightsoft.ru` и `cms.uks.delightsoft.ru`).
-- Аккаунт на почте для уведомлений Let's Encrypt (адрес задаётся переменной `TRAEFIK_EMAIL`).
+- Аккаунт на почте для уведомлений Let's Encrypt (адрес задаётся переменной `TRAEFIK_CERTIFICATES_ACME_EMAIL`, либо запасной `TRAEFIK_EMAIL`).
 
 ### 1.1 Установка Docker и Compose (Ubuntu/Debian)
 ```bash
@@ -63,21 +63,26 @@ cd AZ_work/uks2
    Если вы запускаете генератор через `sudo` и получаете ответ `Error: ENOENT: no such file or directory, uv_cwd`, выполните команду от своего пользователя (без `sudo`). Либо запустите `sudo bash -c 'cd /opt/AZ_work/uks2 && node scripts/generate-env.js --force'`, заменив путь на фактическое расположение каталога `uks2` — так root сначала перейдёт в нужную директорию и ошибка пропадёт.
 
 2. Откройте `.env` и настройте домены и URL:
-   - `TRAEFIK_SITE_DOMAIN=uks.delightsoft.ru`
-   - `TRAEFIK_CMS_DOMAIN=cms.uks.delightsoft.ru`
-   - `NEXT_PUBLIC_SITE_URL=https://uks.delightsoft.ru`
-   - `NEXT_PUBLIC_CMS_URL=https://cms.uks.delightsoft.ru`
-   - `NEXT_PUBLIC_ASSETS_URL=https://cms.uks.delightsoft.ru/assets`
-   - `DIRECTUS_PUBLIC_URL=https://cms.uks.delightsoft.ru`
-   - `CMS_INTERNAL_URL=http://directus:8055`
-   - `DIRECTUS_COOKIE_DOMAIN=.uks.delightsoft.ru`
-   - `DIRECTUS_REFRESH_COOKIE_SECURE=true`
-   - `TRAEFIK_EMAIL=devops@example.ru` (рабочая почта для уведомлений Let’s Encrypt)
-   - `TRAEFIK_ACME_CHALLENGE=http` (смените на `tls` или `dns`, если порт 80 недоступен)
+  - `TRAEFIK_SITE_DOMAIN=uks.delightsoft.ru`
+  - `TRAEFIK_CMS_DOMAIN=cms.uks.delightsoft.ru`
+  - `TRAEFIK_DB_DOMAIN=db.uks.delightsoft.ru`
+  - `TRAEFIK_ENTRYPOINTS_HTTP_ADDRESS=:80` (порт HTTP, нужен для HTTP-01 challenge)
+  - `TRAEFIK_ENTRYPOINTS_HTTPS_ADDRESS=:443` (порт HTTPS, укажите другой при нестандартном пробросе)
+  - `NEXT_PUBLIC_SITE_URL=https://uks.delightsoft.ru`
+  - `NEXT_PUBLIC_CMS_URL=https://cms.uks.delightsoft.ru`
+  - `NEXT_PUBLIC_ASSETS_URL=https://cms.uks.delightsoft.ru/assets`
+  - `DIRECTUS_PUBLIC_URL=https://cms.uks.delightsoft.ru`
+  - `CMS_INTERNAL_URL=http://directus:8055`
+  - `DIRECTUS_COOKIE_DOMAIN=.uks.delightsoft.ru`
+  - `DIRECTUS_REFRESH_COOKIE_SECURE=true`
+  - `TRAEFIK_CERTIFICATES_ACME_EMAIL=devops@example.ru` (рабочая почта для уведомлений Let’s Encrypt)
+  - `TRAEFIK_CERTIFICATES_ACME_STORAGE=/acme.json` (путь хранения сертификатов внутри контейнера)
+  - `TRAEFIK_LOG_LEVEL=INFO`
+  - `TRAEFIK_ACME_CHALLENGE=http` (смените на `tls` или `dns`, если порт 80 недоступен)
 
-> ℹ️ Если `TRAEFIK_EMAIL` оставить пустым, Traefik подставит резервный адрес вида `letsencrypt@<ваш_домен>` и продолжит запуск. Это полезно для первичной проверки конфигурации, но в бою обязательно пропишите рабочий ящик — Let’s Encrypt присылает на него уведомления о скором истечении сертификата.
+> ℹ️ Если `TRAEFIK_CERTIFICATES_ACME_EMAIL` (или устаревшая `TRAEFIK_EMAIL`) оставить пустой, Traefik подставит резервный адрес вида `letsencrypt@<ваш_домен>` и продолжит запуск. Это полезно для первичной проверки конфигурации, но в бою обязательно пропишите рабочий ящик — Let’s Encrypt присылает на него уведомления о скором истечении сертификата.
 
-3. При необходимости смените `DIRECTUS_ADMIN_EMAIL` / `DIRECTUS_ADMIN_PASSWORD` и другие параметры (SMTP, MinIO бакеты, настройки кэша).
+3. При необходимости смените `DIRECTUS_ADMIN_EMAIL` / `DIRECTUS_ADMIN_PASSWORD`, `PGADMIN_DEFAULT_EMAIL` / `PGADMIN_DEFAULT_PASSWORD` и другие параметры (SMTP, MinIO бакеты, настройки кэша).
 
 ## 4. Настройка Traefik и HTTPS
 
@@ -99,7 +104,7 @@ docker compose pull
 NODE_ENV=production docker compose up -d --build
 ```
 
-Команда соберёт образ фронтенда, скачает Directus, Traefik, PostgreSQL, Redis и MinIO, затем запустит их в фоне. Проверить статус можно так:
+Команда соберёт образ фронтенда, скачает Directus, Traefik, PostgreSQL, Redis и MinIO, затем запустит их в фоне. Все сервисы настроены с политикой `restart: unless-stopped`, поэтому после перезагрузки Docker Engine или самого сервера они автоматически поднимутся заново. Проверить статус можно так:
 ```bash
 docker compose ps
 docker compose logs -f traefik
@@ -111,6 +116,7 @@ docker compose logs -f directus
 - `https://cms.uks.delightsoft.ru/admin` — панель Directus
 - `https://cms.uks.delightsoft.ru/items/...` — REST API Directus
 - `https://cms.uks.delightsoft.ru/graphql` — GraphQL API
+- `https://db.uks.delightsoft.ru` — pgAdmin (PostgreSQL UI)
 - Любые обращения по `http://` автоматически перенаправляются на HTTPS Traefik.
 
 > Первое обращение к доменам может занять 30–60 секунд, пока Traefik получает сертификат. До завершения процедуры браузер может показывать ошибку 404/502 или предупреждение о небезопасном соединении — дождитесь окончания выдачи сертификата и перезагрузите страницу.
@@ -141,6 +147,7 @@ docker compose logs -f directus
 Постоянные данные хранятся в docker volumes:
 - `postgres_data` — база Directus
 - `minio_data` — файлы и медиа
+- `pgadmin_data` — пользовательские настройки pgAdmin (подключения, избранные запросы)
 
 Примеры бэкапа:
 ```bash
@@ -172,5 +179,8 @@ sudo tar czf minio-data-$(date +%F).tar.gz -C /var/lib/docker/volumes/ $(docker 
   4. Перезапустите Directus: `docker compose restart directus` и проверьте логи `docker compose logs -f directus`.
   5. Подробная инструкция с дополнительными сценариями приведена в [docs/directus-troubleshooting.md](directus-troubleshooting.md).
 - **Нет доступа к MinIO** — проверьте, что бакеты созданы и креденшелы из `.env` совпадают.
+- **MinIO пишет `has incomplete body` по файлам `.usage.json` / `.bloomcycle.bin`** — после некорректной остановки могут повредиться
+  временные метаданные. При следующем запуске контейнер выполнит `ops/minio/start-minio.sh` и удалит эти файлы, чтобы MinIO
+  пересоздал их. Если сообщение остаётся, остановите стек и удалите локальный том `docker volume rm uks2_minio_data`.
 
 После выполнения шагов сайт будет обслуживаться по HTTPS с автоматическим продлением сертификатов и готовой CMS для управления контентом.
