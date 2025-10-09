@@ -53,7 +53,9 @@ cd AZ_work/uks2
    ```bash
    docker run --rm -v "$(pwd)":/app -w /app node:22 node scripts/generate-env.js --force
    ```
-   Скрипт создаст `uks2/.env` с уникальными ключами для Directus, PostgreSQL и MinIO.
+   Скрипт создаст `uks2/.env` с уникальными ключами для Directus, PostgreSQL и MinIO. Существующий `DATABASE_PASSWORD`
+   сохраняется, поэтому перегенерация `.env` не ломает доступ к базе. Чтобы сменить пароль и применить его к живой БД,
+   добавьте флаг `--rotate-db-password`, а затем выполните команду `docker compose exec postgres psql -U postgres -c "ALTER USER \"$DATABASE_USERNAME\" WITH PASSWORD '\"$DATABASE_PASSWORD\"';"`.
 
 2. Откройте `.env` и настройте домены и URL:
    - `TRAEFIK_SITE_DOMAIN=uks.delightsoft.ru`
@@ -151,6 +153,8 @@ sudo tar czf minio-data-$(date +%F).tar.gz -C /var/lib/docker/volumes/ $(docker 
 - **HTTP 400 при логине в Directus** — проверьте `DIRECTUS_PUBLIC_URL` и `DIRECTUS_COOKIE_DOMAIN`, они должны совпадать с фактическим доменом.
 - **Traefik не получает сертификат** — убедитесь в доступности порта 80 снаружи и корректности DNS. В логах Traefik ищите сообщения ACME.
 - **Directus не стартует из-за схемы** — примените снапшот вручную либо удалите проблемные коллекции через CLI.
+- **Directus перезапускается с ошибкой `password authentication failed for user "uks2"`** — пароль в `.env` не совпадает с
+  тем, что записан в PostgreSQL. Восстановите прежнее значение или выполните `docker compose exec postgres psql -U postgres -c "ALTER USER \"$DATABASE_USERNAME\" WITH PASSWORD '\"$DATABASE_PASSWORD\"';"`.
 - **Нет доступа к MinIO** — проверьте, что бакеты созданы и креденшелы из `.env` совпадают.
 
 После выполнения шагов сайт будет обслуживаться по HTTPS с автоматическим продлением сертификатов и готовой CMS для управления контентом.

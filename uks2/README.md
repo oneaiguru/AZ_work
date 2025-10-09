@@ -27,7 +27,10 @@ uks2/
    ```bash
    node scripts/generate-env.js
    ```
-   Скрипт создаст `uks2/.env` на основе `.env.example`. При наличии файла используйте флаг `--force`, чтобы перезаписать значения.
+   Скрипт создаст `uks2/.env` на основе `.env.example`. При повторном запуске добавьте `--force`, чтобы перезаписать значения, —
+   при этом текущий `DATABASE_PASSWORD` будет сохранён, чтобы не потерять доступ к существующей базе. Если нужно сгенерировать
+   новый пароль и обновить его в PostgreSQL вручную, используйте `node scripts/generate-env.js --force --rotate-db-password` и
+   выполните `docker compose exec postgres psql -U postgres -c "ALTER USER \"$DATABASE_USERNAME\" WITH PASSWORD '\"$DATABASE_PASSWORD\"';"`.
 2. Добавьте в `/etc/hosts` записи для Traefik (пример):
    ```
    127.0.0.1 uks2.localhost cms.uks2.localhost

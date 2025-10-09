@@ -6,6 +6,7 @@ const crypto = require('crypto');
 
 const args = new Set(process.argv.slice(2));
 const force = args.has('--force');
+const rotateDbPassword = args.has('--rotate-db-password');
 
 const projectRoot = path.resolve(__dirname, '..');
 const examplePath = path.join(projectRoot, '.env.example');
@@ -19,6 +20,20 @@ if (!fs.existsSync(examplePath)) {
 if (fs.existsSync(envPath) && !force) {
   console.error('Refusing to overwrite existing .env. Re-run with --force to replace it.');
   process.exit(1);
+}
+
+const previousEnv = new Map();
+if (fs.existsSync(envPath)) {
+  const content = fs.readFileSync(envPath, 'utf8');
+  content.split(/\r?\n/).forEach((line) => {
+    if (!line || line.trim().startsWith('#') || !line.includes('=')) {
+      return;
+    }
+    const [rawKey, ...rest] = line.split('=');
+    const key = rawKey.trim();
+    const value = rest.join('=');
+    previousEnv.set(key, value);
+  });
 }
 
 const randomAlphaNumeric = (length) => {
@@ -49,6 +64,9 @@ const generatedLines = exampleContent.split(/\r?\n/).map((line) => {
   if (!generator) {
     return line;
   }
+  if (key === 'DATABASE_PASSWORD' && previousEnv.has(key) && !rotateDbPassword) {
+    return `${key}=${previousEnv.get(key)}`;
+  }
   return `${key}=${generator()}`;
 });
 
@@ -56,3 +74,6 @@ const output = generatedLines.join('\n');
 fs.writeFileSync(envPath, output.endsWith('\n') ? output : `${output}\n`, { mode: 0o600 });
 
 console.log('Generated uks2/.env with random credentials.');
+if (previousEnv.has('DATABASE_PASSWORD') && !rotateDbPassword) {
+  console.log('Kept existing DATABASE_PASSWORD. Run with --rotate-db-password to generate a new one and update PostgreSQL manually.');
+}
