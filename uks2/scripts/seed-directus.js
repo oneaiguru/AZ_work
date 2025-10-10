@@ -14,6 +14,7 @@ let dataFile = path.join(__dirname, 'seed-data.json');
 let maxImages = 12;
 let waitTimeoutOverride;
 let waitIntervalOverride;
+const directusUrlOverrides = [];
 
 for (let index = 0; index < args.length; index += 1) {
   const arg = args[index];
@@ -49,6 +50,21 @@ for (let index = 0; index < args.length; index += 1) {
     const value = Number.parseInt(args[index + 1], 10);
     if (Number.isFinite(value) && value > 0) {
       maxImages = value;
+    }
+    index += 1;
+    continue;
+  }
+  if (arg.startsWith('--directus-url=')) {
+    const value = normalizeUrl(arg.slice('--directus-url='.length));
+    if (value) {
+      directusUrlOverrides.push(value);
+    }
+    continue;
+  }
+  if (arg === '--directus-url' && args[index + 1]) {
+    const value = normalizeUrl(args[index + 1]);
+    if (value) {
+      directusUrlOverrides.push(value);
     }
     index += 1;
     continue;
@@ -173,8 +189,13 @@ function normalizeUrl(value) {
 }
 
 const directusUrlCandidates = [
-  process.env.DIRECTUS_INTERNAL_URL,
+  ...directusUrlOverrides,
+  process.env.DIRECTUS_SEED_URL,
   process.env.DIRECTUS_PUBLIC_URL,
+  process.env.NEXT_PUBLIC_CMS_URL,
+  process.env.CMS_INTERNAL_URL,
+  process.env.DIRECTUS_INTERNAL_URL,
+  'http://localhost/cms',
   'http://localhost:8055',
 ]
   .map(normalizeUrl)
