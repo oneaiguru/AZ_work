@@ -178,28 +178,28 @@
     {
       "title": "Регламент закупок (демо-версия)",
       "category": "Закупки",
-      "url": "https://uks.irkutsk.ru/upload/docs/polozhenie-zakupki.pdf",
+      "url": "https://raw.githubusercontent.com/github/training-kit/master/downloads/github-git-cheat-sheet.pdf",
       "documentDate": "2024-12-20",
       "sort": 10
     },
     {
       "title": "Политика обработки персональных данных (пример)",
       "category": "Персональные данные",
-      "url": "https://uks.irkutsk.ru/upload/docs/pd-policy.pdf",
+      "url": "https://raw.githubusercontent.com/github/training-kit/master/downloads/fr/github-git-cheat-sheet.pdf",
       "documentDate": "2024-09-15",
       "sort": 20
     },
     {
       "title": "Годовой отчёт УКС за 2024 год (макет)",
       "category": "Отчётность",
-      "url": "https://uks.irkutsk.ru/upload/docs/annual-report-2024.pdf",
+      "url": "https://raw.githubusercontent.com/github/training-kit/master/downloads/pt_BR/github-git-cheat-sheet.pdf",
       "documentDate": "2024-12-31",
       "sort": 30
     },
     {
       "title": "Устав МКУ \"УКС\" (демонстрационный файл)",
       "category": "Учредительные документы",
-      "url": "https://uks.irkutsk.ru/upload/docs/ustav-uks.pdf",
+      "url": "https://raw.githubusercontent.com/github/training-kit/master/downloads/ja/github-git-cheat-sheet.pdf",
       "documentDate": "2022-05-17",
       "sort": 40
     }
