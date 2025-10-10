@@ -188,6 +188,23 @@ function normalizeUrl(value) {
   return trimmed.replace(/\/+$/, '');
 }
 
+function findErrorProperty(error, property, seen = new Set()) {
+  if (!error || typeof error !== 'object') {
+    return undefined;
+  }
+  if (seen.has(error)) {
+    return undefined;
+  }
+  seen.add(error);
+  if (error[property] !== undefined && error[property] !== null) {
+    return error[property];
+  }
+  if (error.cause) {
+    return findErrorProperty(error.cause, property, seen);
+  }
+  return undefined;
+}
+
 const directusUrlCandidates = [
   ...directusUrlOverrides,
   process.env.DIRECTUS_SEED_URL,
@@ -322,6 +339,22 @@ function isDnsErrorCode(code) {
   return ['EAI_AGAIN', 'ENOTFOUND', 'EAI_FAIL', 'EAI_NODATA', 'EAI_NONAME'].includes(code);
 }
 
+function isNetworkErrorCode(code) {
+  return [
+    'ENETUNREACH',
+    'EHOSTUNREACH',
+    'ECONNREFUSED',
+    'ECONNRESET',
+    'ECONNABORTED',
+    'ETIMEDOUT',
+    'ENETDOWN',
+    'EHOSTDOWN',
+    'EPIPE',
+    'EPROTO',
+    'UND_ERR_CONNECT_TIMEOUT',
+  ].includes(code);
+}
+
 async function pollDirectusHealth(baseUrl) {
   const healthUrl = `${baseUrl}/server/health`;
   console.log(`Polling ${healthUrl} for up to ${directusWaitTimeoutMs}ms (minimum interval ${directusWaitIntervalMs}ms).`);
@@ -387,8 +420,10 @@ async function pollDirectusHealth(baseUrl) {
       lastError = attemptError;
       const remaining = deadline - Date.now();
       const baseMessage = attemptError.message || String(attemptError);
-      const code = attemptError.code || attemptError.cause?.code;
-      const hostname = attemptError.hostname || attemptError.cause?.hostname;
+      const code = findErrorProperty(attemptError, 'code');
+      const hostname = findErrorProperty(attemptError, 'hostname');
+      const address = findErrorProperty(attemptError, 'address');
+      const port = findErrorProperty(attemptError, 'port');
       const details = [baseMessage];
       if (code && !baseMessage.includes(code)) {
         attemptError.code = code;
@@ -398,11 +433,25 @@ async function pollDirectusHealth(baseUrl) {
         attemptError.hostname = hostname;
         details.push(`hostname=${hostname}`);
       }
+      if (address && !baseMessage.includes(address)) {
+        attemptError.address = address;
+        details.push(`address=${address}`);
+      }
+      if (port && !baseMessage.includes(String(port))) {
+        attemptError.port = port;
+        details.push(`port=${port}`);
+      }
       const reason = details.filter(Boolean).join(' ');
       if (code && isDnsErrorCode(code)) {
         console.log(`Directus URL ${baseUrl} is not reachable due to DNS resolution error: ${reason}.`);
         attemptError.url = baseUrl;
         attemptError.isDnsError = true;
+        throw attemptError;
+      }
+      if (code && isNetworkErrorCode(code)) {
+        console.log(`Directus URL ${baseUrl} is not reachable due to network error: ${reason}.`);
+        attemptError.url = baseUrl;
+        attemptError.isNetworkError = true;
         throw attemptError;
       }
       if (remaining <= 0) {
@@ -445,13 +494,19 @@ async function waitForDirectusAvailability() {
       return;
     } catch (error) {
       errors.push({ url: candidate, error });
-      const code = error.code || error.cause?.code;
-      if (isDnsErrorCode(code) && index < directusUrlCandidates.length - 1) {
-        console.log(`Falling back to the next candidate because DNS lookup failed for ${candidate}.`);
-        continue;
-      }
+      const code = findErrorProperty(error, 'code');
       if (index < directusUrlCandidates.length - 1) {
-        console.log(`Attempt to reach Directus at ${candidate} failed. Trying the next candidate...`);
+        if (code && isDnsErrorCode(code)) {
+          console.log(`Falling back to the next candidate because DNS lookup failed for ${candidate}.`);
+          continue;
+        }
+        if (code && isNetworkErrorCode(code)) {
+          console.log(`Falling back to the next candidate because a network error (${code}) occurred for ${candidate}.`);
+          continue;
+        }
+        const message = error?.message || String(error);
+        console.log(`Attempt to reach Directus at ${candidate} failed (${message}). Trying the next candidate...`);
+        continue;
       }
     }
   }
