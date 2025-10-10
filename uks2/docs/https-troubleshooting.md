@@ -49,9 +49,9 @@ docker compose up -d nginx
 
 ## 4. Проверить конфигурацию префиксов
 
-Если сайт открывается, но `/cms` или `/db` отвечают 404/редиректят на корень, убедитесь, что:
-- В `ops/nginx/default.conf` есть блоки `location /cms/` и `location /db/`.
-- В `.env` задан `PGADMIN_BASE_PATH=/db`, а `DIRECTUS_PUBLIC_URL` и `DIRECTUS_REFRESH_COOKIE_PATH` указывают на `https://<домен>/cms` и `/cms` соответственно.
+Если сайт открывается, но `/admin` или `/db` отвечают 404/редиректят на корень, убедитесь, что:
+- В `ops/nginx/default.conf` есть блоки `location /admin/` и `location /db/`.
+- В `.env` задан `PGADMIN_BASE_PATH=/db`, а `DIRECTUS_PUBLIC_URL` и `DIRECTUS_REFRESH_COOKIE_PATH` указывают на `https://<домен>/admin` и `/admin` соответственно.
 - После изменения `.env` перезапущены `pgadmin`, `directus` и `nginx`.
 
 ## 5. Проверить цепочку сертификатов со стороны клиента
@@ -75,4 +75,4 @@ server {
 
 Поместите его перед основным сервером HTTPS. После правок выполните `docker compose up -d nginx`.
 
-Следуя этим шагам, можно восстановить рабочее HTTPS-соединение и корректный доступ к `/`, `/cms` и `/db` через Nginx.
+Следуя этим шагам, можно восстановить рабочее HTTPS-соединение и корректный доступ к `/`, `/admin` и `/db` через Nginx.
