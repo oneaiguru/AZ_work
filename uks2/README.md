@@ -1,6 +1,6 @@
-# УКС Иркутск — Next.js + Directus + Traefik
+# УКС Иркутск — Next.js + Directus + Nginx
 
-Альтернативный стек для сайта Управления капитального строительства г. Иркутска. Вариант `uks2/` использует фронтенд на Next.js 14, Headless CMS Directus 11 и Traefik в роли реверс-прокси. Инфраструктура разворачивается через Docker Compose вместе с PostgreSQL, Redis и MinIO.
+Альтернативный стек для сайта Управления капитального строительства г. Иркутска. Вариант `uks2/` использует фронтенд на Next.js 14, Headless CMS Directus 11 и Nginx в роли реверс-прокси. Инфраструктура разворачивается через Docker Compose вместе с PostgreSQL, Redis и MinIO.
 
 ## Структура проекта
 
@@ -8,7 +8,7 @@
 uks2/
 ├── frontend/        # Next.js 14 приложение (App Router, TypeScript)
 ├── directus/        # Конфигурация Directus (snapshot, расширения, Dockerfile)
-├── ops/traefik/     # Настройки Traefik и файлы ACME
+├── ops/nginx/       # Конфигурация reverse-proxy Nginx
 ├── scripts/         # Вспомогательные утилиты
 ├── docker-compose.yml
 ├── .env.example
@@ -19,7 +19,7 @@ uks2/
 
 - Node.js 22+ и npm 10+ (для локальной разработки CLI Directus; фронтенд можно запускать на Node 20, но Directus 11 требует Node 22)
 - Docker Engine 24+ и Docker Compose Plugin 2.24+
-- Возможность редактировать `/etc/hosts` (для привязки локальных доменов Traefik)
+- Возможность при необходимости добавить запись в `/etc/hosts` (например, `127.0.0.1 uks2.localhost`), чтобы проксировать домен через локальный Nginx.
 
 ## Настройка окружения
 
@@ -35,27 +35,8 @@ uks2/
    docker compose exec postgres psql -U "$DATABASE_USERNAME" -d "$DATABASE_NAME" -c "ALTER USER \"$DATABASE_USERNAME\" WITH PASSWORD '$DATABASE_PASSWORD';"
    ```
    > ⚠️ Если команда выполняется через `sudo` и вы видите `Error: ENOENT: no such file or directory, uv_cwd`, значит root-пользователь не может обратиться к текущему каталогу. Запустите генератор от обычного пользователя (без `sudo`) либо выполните `sudo bash -c 'cd /opt/AZ_work/uks2 && node scripts/generate-env.js --force'`, подставив фактический путь до каталога `uks2`.
-2. Добавьте в `/etc/hosts` записи для Traefik (пример):
-   ```
-   127.0.0.1 uks2.localhost cms.uks2.localhost
-   ```
-3. При необходимости скорректируйте значения `TRAEFIK_SITE_DOMAIN`, `TRAEFIK_CMS_DOMAIN`, `NEXT_PUBLIC_CMS_URL` и `NEXT_PUBLIC_SITE_URL` под собственный домен/порты. В боевой конфигурации сервисы доступны по адресу `https://uks.delightsoft.ru` (фронтенд) и `https://cms.uks.delightsoft.ru` (Directus), поэтому `.env.example` уже содержит эти значения. Для локальной разработки замените их на `uks2.localhost` и `cms.uks2.localhost`. При работе через Traefik обязательно укажите те же домены в `DIRECTUS_PUBLIC_URL` и `DIRECTUS_COOKIE_DOMAIN` — иначе браузер не сохранит cookie сеанса и вход в Directus завершится ошибкой 400 на `/auth/login`. Если вы запускаете Directus без HTTPS, временно установите `DIRECTUS_REFRESH_COOKIE_SECURE=false`.
-
-> ℹ️ Если переменная `TRAEFIK_EMAIL` останется пустой, стартовый скрипт Traefik не прервёт запуск и автоматически подставит адрес вида `letsencrypt@<ваш_домен>`. Это удобно для тестов, но для продакшн-окружений обязательно задайте рабочий почтовый ящик, чтобы получать напоминания Let’s Encrypt о продлении сертификатов.
-
-4. Выберите способ выпуска сертификатов Let’s Encrypt с помощью `TRAEFIK_ACME_CHALLENGE`:
-   - `http` — классический HTTP-01 challenge (порт 80 должен быть доступен из интернета).
-   - `tls` — TLS-ALPN-01 challenge (сертификат выдаётся через порт 443; подходит, если 80 заблокирован провайдером или файрволом).
-   - `dns` — DNS-01 challenge (потребуется `TRAEFIK_DNS_PROVIDER` и, при необходимости, токен API). Для Cloudflare, например, добавьте
-     в `.env`:
-     ```ini
-     TRAEFIK_ACME_CHALLENGE=dns
-     TRAEFIK_DNS_PROVIDER=cloudflare
-     TRAEFIK_EXTRA_ACME_ARGS=--certificatesresolvers.le.acme.dnschallenge.disablePropagationCheck=true
-     ```
-     и передайте переменные `CF_API_TOKEN`/`CF_ZONE_API_TOKEN` контейнеру Traefik через Docker Secrets или `.env`.
-     При необходимости используйте `TRAEFIK_DNS_RESOLVERS`, `TRAEFIK_DNS_PROPAGATION_TIMEOUT` или `TRAEFIK_DNS_DISABLE_PROPAGATION_CHECK`,
-     чтобы адаптировать поведение конкретного DNS-провайдера. Дополнительные флаги можно указать через `TRAEFIK_EXTRA_ACME_ARGS`.
+2. Если хотите открывать стек по читаемому домену (например, `uks2.localhost`), добавьте строку `127.0.0.1 uks2.localhost` в `/etc/hosts`. Так Nginx будет проксировать все запросы на `http://uks2.localhost`, `http://uks2.localhost/cms` и `http://uks2.localhost/db`.
+3. Обновите URL и cookie-параметры в `.env`: `NEXT_PUBLIC_SITE_URL`, `NEXT_PUBLIC_CMS_URL`, `NEXT_PUBLIC_ASSETS_URL`, `DIRECTUS_PUBLIC_URL`, `DIRECTUS_COOKIE_DOMAIN`, `DIRECTUS_REFRESH_COOKIE_PATH` и `PGADMIN_BASE_PATH`. В продакшн-конфигурации используется `https://uks.delightsoft.ru`, поэтому значения уже включают подкаталоги `/cms` и `/db`. Для локального запуска замените их, например, на `http://uks2.localhost`, `http://uks2.localhost/cms`, `http://uks2.localhost/cms/assets`, `DIRECTUS_COOKIE_DOMAIN=` (пустая строка) и `PGADMIN_BASE_PATH=/db`. Если вы работаете по HTTP, дополнительно установите `DIRECTUS_REFRESH_COOKIE_SECURE=false`, чтобы Directus выдавал cookie без флага `Secure`.
 
 ## Локальная разработка без Docker
 
@@ -79,7 +60,7 @@ npx directus start
 ```bash
 npx directus schema apply snapshot.yaml
 ```
-После запуска админка будет доступна на <http://localhost:8055/admin>. Создайте пользователя с учётными данными из `.env` (`DIRECTUS_ADMIN_EMAIL`, `DIRECTUS_ADMIN_PASSWORD`). Если вы предпочитаете открывать панель по Traefik-домену (`https://cms.uks2.localhost`), обновите `DIRECTUS_PUBLIC_URL` и при необходимости `DIRECTUS_COOKIE_DOMAIN` — значения должны совпадать с хостом, который вы используете в браузере.
+После запуска админка будет доступна на <http://localhost:8055/admin>. Создайте пользователя с учётными данными из `.env` (`DIRECTUS_ADMIN_EMAIL`, `DIRECTUS_ADMIN_PASSWORD`). Чтобы работать через Nginx по пути `/cms`, обновите `DIRECTUS_PUBLIC_URL` (например, `http://uks2.localhost/cms`) и при необходимости `DIRECTUS_COOKIE_DOMAIN` — значения должны совпадать с адресом, который вы используете в браузере.
 
 ## Запуск через Docker Compose
 
@@ -88,22 +69,20 @@ cd uks2
 docker compose up --build
 ```
 
-> ℹ️ **Windows**: Убедитесь, что Docker Desktop запущен и доступен через named pipe `//./pipe/dockerDesktopLinuxEngine`. Если команда завершается ошибкой `unable to get image 'traefik:v3.1'`, значит Docker Engine не запущен. Перезапустите Docker Desktop и повторите `docker compose up --build`. При желании можно заранее выполнить `docker pull traefik:v3.1`.
+> ℹ️ **Windows**: Убедитесь, что Docker Desktop запущен и доступен через named pipe `//./pipe/dockerDesktopLinuxEngine`. Если команда завершается ошибкой `unable to get image 'nginx:1.27-alpine'`, значит Docker Engine не запущен или потеряно подключение к Docker Hub. Перезапустите Docker Desktop и повторите `docker compose up --build`. При желании можно заранее выполнить `docker pull nginx:1.27-alpine`.
 
-Сервисы и точки входа:
-- `https://uks.delightsoft.ru` — публичный домен фронтенда через Traefik
-- `https://cms.uks.delightsoft.ru` — Directus (REST, GraphQL, админка)
-- `http://` запросы на оба домена автоматически перенаправляются на HTTPS.
-- `https://uks2.localhost` / `https://cms.uks2.localhost` — локальная среда (при замене доменов в `.env`)
-- `http://localhost:8055` — прямой доступ к Directus (в обход Traefik)
-- `http://localhost:9001` — MinIO console (логин/пароль из `.env`)
-- `redis://localhost:6379` — Redis для кеша Directus
-
-> ⚠️ Для HTTPS Traefik генерирует сертификаты через Let’s Encrypt. Стартовый скрипт автоматически создаёт `ops/traefik/acme.json` с правами `600` и использует challenge из `TRAEFIK_ACME_CHALLENGE`. В локальной среде можно отключить `websecure` роутер или использовать self-signed сертификаты.
+Сервисы и точки входа (по умолчанию, см. `.env`):
+- `https://uks.delightsoft.ru` — публичный фронтенд.
+- `https://uks.delightsoft.ru/cms` — Directus (REST, GraphQL, админка доступна по `/cms/admin`).
+- `https://uks.delightsoft.ru/db` — pgAdmin (PostgreSQL UI, логин/пароль из `PGADMIN_DEFAULT_EMAIL` / `PGADMIN_DEFAULT_PASSWORD`).
+- `http://uks2.localhost`, `http://uks2.localhost/cms` и `http://uks2.localhost/db` — пример локальной среды через `/etc/hosts`.
+- `http://localhost:8055` — прямой доступ к Directus без Nginx-прокси.
+- `http://localhost:9001` — MinIO console (логин/пароль из `.env`).
+- `redis://localhost:6379` — Redis для кеша Directus.
 
 ### Продакшн на Unix-сервере
 
-Для пошаговой установки на Linux-сервере с публичным доменом и автоматическим выпуском TLS-сертификатов см. документ [docs/unix-docker-deployment.md](docs/unix-docker-deployment.md). В нём описаны требования, настройка DNS, генерация `.env`, подготовка Traefik и регулярное обслуживание контейнеров. Если браузер сообщает о недоверенном сертификате (`ERR_CERT_AUTHORITY_INVALID`), следуйте инструкции [docs/https-troubleshooting.md](docs/https-troubleshooting.md). Для разбора типовых ошибок Directus (например, `password authentication failed for user "uks2"`) загляните в [docs/directus-troubleshooting.md](docs/directus-troubleshooting.md).
+Для пошаговой установки на Linux-сервере с публичным доменом и подключением сертификатов см. документ [docs/unix-docker-deployment.md](docs/unix-docker-deployment.md). В нём описаны требования, настройка DNS, генерация `.env`, подготовка Nginx и регулярное обслуживание контейнеров. Если браузер сообщает о недоверенном сертификате (`ERR_CERT_AUTHORITY_INVALID`), следуйте инструкции [docs/https-troubleshooting.md](docs/https-troubleshooting.md). Для разбора типовых ошибок Directus (например, `password authentication failed for user "uks2"`) загляните в [docs/directus-troubleshooting.md](docs/directus-troubleshooting.md). Для генерации системы с нуля на основе ИИ можно воспользоваться готовым [промптом](docs/uks2-system-prompt.md), который описывает целевую архитектуру, дизайн и структуру данных.
 
 ### Для чего нужен Redis
 
@@ -132,6 +111,14 @@ docker compose exec minio mc mb -p local/$MINIO_BUCKET_PRIVATE
 ```
 Затем включите S3-хранилище в Directus (`Settings → Storage`) и укажите MinIO как источник.
 
+#### Устранение ошибок сканера MinIO
+
+При некорректном завершении работы локального хранилища MinIO может появляться сообщение `has incomplete body` о повреждённых
+файлах `.usage.json` или `.bloomcycle.bin` внутри каталога `.minio.sys/buckets`. Контейнер `minio` запускается через скрипт
+`ops/minio/start-minio.sh`, который автоматически удаляет эти временные файлы перед стартом сервера, чтобы сканер MinIO
+пересоздал их заново. Если ошибка повторяется, остановите стек и вручную очистите каталог `minio_data` или выполните
+`docker volume rm uks2_minio_data` перед повторным запуском.
+
 ## Работа с Directus
 
 - Snapshot схемы (`directus/snapshot.yaml`) описывает коллекции: `homepage`, `projects`, `procurements`, `documents`, `news_articles`, `contacts`, `about_values` и связи между ними.
@@ -145,7 +132,7 @@ docker compose exec minio mc mb -p local/$MINIO_BUCKET_PRIVATE
 
 ### 1. Вход в админку
 
-1. Откройте <https://cms.uks2.localhost/admin> (либо домен, указанный в `DIRECTUS_PUBLIC_URL`).
+1. Откройте <http://uks2.localhost/cms/admin> (либо домен, указанный в `DIRECTUS_PUBLIC_URL`).
 2. Авторизуйтесь под пользователем, созданным при bootstrap (`DIRECTUS_ADMIN_EMAIL` / `DIRECTUS_ADMIN_PASSWORD`).
 3. При необходимости создайте отдельных редакторов в разделе **Настройки → Пользователи** и назначьте им роль `editor`.
 
@@ -219,9 +206,11 @@ docker compose exec minio mc mb -p local/$MINIO_BUCKET_PRIVATE
 
 1. Подготовить `.env` с боевыми доменами, S3 и SMTP.
 2. Запустить `docker compose up -d` на сервере с открытыми портами 80/443.
-3. Настроить DNS на домен (`uks2.example.com`, `cms.uks2.example.com`).
+   Все сервисы в `docker-compose.yml` настроены с политикой `restart: unless-stopped`, поэтому после перезагрузки Docker Engine
+   или самого сервера контейнеры автоматически восстановятся.
+3. Настроить DNS на домен (`uks.delightsoft.ru` или локальный аналог `uks2.example.com`).
 4. Создать администратора Directus и заполнить контент через админку.
-5. Запустить интеграционные тесты (линтер, e2e) и включить мониторинг Traefik/Directus.
+5. Запустить интеграционные тесты (линтер, e2e) и включить мониторинг Nginx/Directus.
 
 ## Полезные команды
 
@@ -229,8 +218,8 @@ docker compose exec minio mc mb -p local/$MINIO_BUCKET_PRIVATE
 # Перезапуск одного сервиса
 docker compose restart frontend
 
-# Просмотр логов Traefik
-docker compose logs -f traefik
+# Просмотр логов Nginx
+docker compose logs -f nginx
 
 # Обновление snapshot после изменений в Directus
 npx directus schema snapshot snapshot.yaml --yes
