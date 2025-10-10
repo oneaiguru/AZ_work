@@ -431,16 +431,13 @@ async function attachPolicyToRole(token, roleId, policyId) {
 
 async function getPublicRoleContext(token) {
   const params = new URLSearchParams();
-  params.set('limit', '-1');
   params.append('fields[]', 'id');
   params.append('fields[]', 'name');
-  params.append('fields[]', 'key');
-  const url = `${directusUrl}/roles?${params.toString()}`;
+  const url = `${directusUrl}/roles/public?${params.toString()}`;
   const response = await requestJson(url, withAuth(token));
-  const roles = Array.isArray(response?.data) ? response.data : [];
-  const match = roles.find((role) => role?.key === 'public') || roles.find((role) => role?.name?.toLowerCase() === 'public');
+  const match = response?.data;
   if (match?.id) {
-    logDebug('Found public role', { id: match.id, name: match.name, key: match.key });
+    logDebug('Found public role', { id: match.id, name: match.name });
     const accessParams = new URLSearchParams();
     accessParams.set('filter[role][_eq]', match.id);
     accessParams.append('fields[]', 'id');
