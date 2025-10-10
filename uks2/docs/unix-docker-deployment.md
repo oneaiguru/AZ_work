@@ -64,10 +64,9 @@ cd AZ_work/uks2
 
 2. Откройте `.env` и настройте основные URL и базовые пути:
    - `NEXT_PUBLIC_SITE_URL=https://uks.delightsoft.ru`
-   - `NEXT_PUBLIC_CMS_URL=https://uks.delightsoft.ru/cms`
-   - `NEXT_PUBLIC_ASSETS_URL=https://uks.delightsoft.ru/cms/assets`
-   - `DIRECTUS_PUBLIC_URL=https://uks.delightsoft.ru/cms`
-   - `DIRECTUS_SEED_URL=https://uks.delightsoft.ru/cms`
+   - `NEXT_PUBLIC_CMS_URL=https://uks.delightsoft.ru/admin`
+   - `NEXT_PUBLIC_ASSETS_URL=https://uks.delightsoft.ru/admin/assets`
+   - `DIRECTUS_PUBLIC_URL=https://uks.delightsoft.ru/admin`
    - `DIRECTUS_COOKIE_DOMAIN=.uks.delightsoft.ru`
    - `DIRECTUS_REFRESH_COOKIE_PATH=/admin`
    - `PGADMIN_BASE_PATH=/db`
@@ -81,7 +80,7 @@ cd AZ_work/uks2
 
 Файл `ops/nginx/default.conf` уже содержит правила для проксирования:
 - `/` → Next.js (`frontend:3000`)
-- `/cms/` и `/admin/` → Directus (`directus:8055`)
+- `/admin/` → Directus (`directus:8055`)
 - `/db/` → pgAdmin (`pgadmin:80`)
 
 По умолчанию контейнер слушает только HTTP (порт 80). Чтобы включить HTTPS:
@@ -117,9 +116,9 @@ docker compose logs -f directus
 
 После запуска сервисы будут доступны по адресам из `.env`, например:
 - `https://uks.delightsoft.ru` — публичный сайт (Next.js)
-- `https://uks.delightsoft.ru/cms/admin` (или `https://uks.delightsoft.ru/admin/`) — панель Directus
-- `https://uks.delightsoft.ru/cms/items/...` — REST API Directus
-- `https://uks.delightsoft.ru/cms/graphql` — GraphQL API
+- `https://uks.delightsoft.ru/admin` — панель Directus
+- `https://uks.delightsoft.ru/admin/items/...` — REST API Directus
+- `https://uks.delightsoft.ru/admin/graphql` — GraphQL API
 - `https://uks.delightsoft.ru/db` — pgAdmin (PostgreSQL UI)
 
 Если TLS настроен внешним балансировщиком, замените `https://` на актуальную схему.

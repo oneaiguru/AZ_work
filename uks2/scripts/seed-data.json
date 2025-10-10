@@ -3,38 +3,44 @@
     "https://uks.irkutsk.ru/",
     "https://uks.irkutsk.ru/projects/",
     "https://uks.irkutsk.ru/press-tsentr/",
-    "https://uks.irkutsk.ru/zakupki/"
+    "https://uks.irkutsk.ru/zakupki/",
+    "https://uks.irkutsk.ru/wp-content/uploads/"
   ],
   "manualImages": [
     {
-      "url": "https://uks.irkutsk.ru/local/templates/uks/build/images/hero/banner.jpg",
+      "url": "https://uks.irkutsk.ru/wp-content/uploads/2025/09/uks_view_photo_1.jpg",
       "title": "Главный баннер УКС",
       "description": "Фотография с главной страницы сайта УКС Иркутска"
     },
     {
-      "url": "https://uks.irkutsk.ru/local/templates/uks/build/images/projects/quarter.jpg",
+      "url": "https://uks.irkutsk.ru/wp-content/uploads/2025/09/uks_project_quarter_2025.jpg",
       "title": "Квартал Возрождение",
       "description": "Визуализация квартала Возрождение"
     },
     {
-      "url": "https://uks.irkutsk.ru/local/templates/uks/build/images/projects/school.jpg",
+      "url": "https://uks.irkutsk.ru/wp-content/uploads/2025/09/uks_school_render_2025.jpg",
       "title": "Школа в Академгородке",
       "description": "Визуализация новой школы на 1275 мест"
     },
     {
-      "url": "https://uks.irkutsk.ru/local/templates/uks/build/images/projects/ice-palace.jpg",
+      "url": "https://uks.irkutsk.ru/wp-content/uploads/2025/09/uks_ice_palace_render.jpg",
       "title": "Ледовый дворец",
       "description": "Проект ледового дворца в Иркутске"
     },
     {
-      "url": "https://uks.irkutsk.ru/local/templates/uks/build/images/about/office.jpg",
-      "title": "Команда УКС",
-      "description": "Рабочие процессы в офисе УКС"
+      "url": "https://uks.irkutsk.ru/wp-content/uploads/2025/09/uks_kindergarten_render.jpg",
+      "title": "Детский сад",
+      "description": "Визуализация детского сада в микрорайоне Синюшина гора"
     },
     {
-      "url": "https://images.unsplash.com/photo-1505843513577-22bb7d21e455?auto=format&fit=crop&w=1600&q=80",
-      "title": "Современный жилой квартал",
-      "description": "Запасное изображение на случай недоступности домена УКС"
+      "url": "https://uks.irkutsk.ru/wp-content/uploads/2025/09/uks_embankment_project.jpg",
+      "title": "Набережная Ангары",
+      "description": "Проект благоустройства набережной Ангары"
+    },
+    {
+      "url": "https://uks.irkutsk.ru/wp-content/uploads/2025/09/uks_team_office.jpg",
+      "title": "Команда УКС",
+      "description": "Рабочие процессы в офисе УКС"
     }
   ],
   "homepage": {
@@ -48,7 +54,7 @@
         { "label": "социальных объектов", "value": "120+" },
         { "label": "кв. м строительства", "value": "450 000" }
       ],
-      "imageUrl": "https://uks.irkutsk.ru/local/templates/uks/build/images/hero/banner.jpg"
+      "imageUrl": "https://uks.irkutsk.ru/wp-content/uploads/2025/09/uks_view_photo_1.jpg"
     },
     "about": {
       "intro": "Управление капитального строительства реализует стратегические программы развития городской среды Иркутска — от обследования площадок до ввода объектов в эксплуатацию.",
@@ -75,7 +81,7 @@
         "Благоустроенная набережная Ангары и общественные пространства",
         "Энергоэффективные дома и парковки на периметре квартала"
       ],
-      "imageUrl": "https://uks.irkutsk.ru/local/templates/uks/build/images/projects/quarter.jpg"
+      "imageUrl": "https://uks.irkutsk.ru/wp-content/uploads/2025/09/uks_project_quarter_2025.jpg"
     }
   },
   "contacts": {
@@ -94,7 +100,7 @@
       "year": 2025,
       "description": "Образовательный комплекс нового поколения с медиацентром, технопарком и спортивной инфраструктурой.",
       "sort": 10,
-      "imageUrl": "https://uks.irkutsk.ru/local/templates/uks/build/images/projects/school.jpg"
+      "imageUrl": "https://uks.irkutsk.ru/wp-content/uploads/2025/09/uks_school_render_2025.jpg"
     },
     {
       "title": "Детский сад в микрорайоне Синюшина гора",
@@ -103,7 +109,7 @@
       "year": 2024,
       "description": "Детский сад на 280 мест с бассейном, логопедическими и сенсорными комнатами.",
       "sort": 20,
-      "imageUrl": "https://uks.irkutsk.ru/local/templates/uks/build/images/projects/kindergarten.jpg"
+      "imageUrl": "https://uks.irkutsk.ru/wp-content/uploads/2025/09/uks_kindergarten_render.jpg"
     },
     {
       "title": "Ледовый дворец для детско-юношеского спорта",
@@ -112,7 +118,7 @@
       "year": 2024,
       "description": "Ледовая арена на 2500 зрителей, тренировочный каток и центр подготовки фигуристов.",
       "sort": 30,
-      "imageUrl": "https://uks.irkutsk.ru/local/templates/uks/build/images/projects/ice-palace.jpg"
+      "imageUrl": "https://uks.irkutsk.ru/wp-content/uploads/2025/09/uks_ice_palace_render.jpg"
     },
     {
       "title": "Реконструкция набережной Ангары",
@@ -121,7 +127,7 @@
       "year": 2023,
       "description": "Пешеходные маршруты, амфитеатр и смотровые площадки на правом берегу Ангары.",
       "sort": 40,
-      "imageUrl": "https://uks.irkutsk.ru/local/templates/uks/build/images/projects/embankment.jpg"
+      "imageUrl": "https://uks.irkutsk.ru/wp-content/uploads/2025/09/uks_embankment_project.jpg"
     }
   ],
   "procurements": [
@@ -158,30 +164,30 @@
   ],
   "documents": [
     {
-      "title": "Положение о закупочной деятельности УКС",
+      "title": "Регламент закупок (демо-версия)",
       "category": "Закупки",
-      "url": "https://uks.irkutsk.ru/upload/docs/polozhenie-zakupki.pdf",
+      "url": "https://raw.githubusercontent.com/github/training-kit/master/downloads/github-git-cheat-sheet.pdf",
       "documentDate": "2024-12-20",
       "sort": 10
     },
     {
-      "title": "Политика обработки персональных данных",
+      "title": "Политика обработки персональных данных (пример)",
       "category": "Персональные данные",
-      "url": "https://uks.irkutsk.ru/upload/docs/pd-policy.pdf",
+      "url": "https://raw.githubusercontent.com/github/training-kit/master/downloads/fr/github-git-cheat-sheet.pdf",
       "documentDate": "2024-09-15",
       "sort": 20
     },
     {
-      "title": "Годовой отчёт УКС за 2024 год",
+      "title": "Годовой отчёт УКС за 2024 год (макет)",
       "category": "Отчётность",
-      "url": "https://uks.irkutsk.ru/upload/docs/annual-report-2024.pdf",
+      "url": "https://raw.githubusercontent.com/github/training-kit/master/downloads/pt_BR/github-git-cheat-sheet.pdf",
       "documentDate": "2024-12-31",
       "sort": 30
     },
     {
-      "title": "Устав МКУ \"УКС\"",
+      "title": "Устав МКУ \"УКС\" (демонстрационный файл)",
       "category": "Учредительные документы",
-      "url": "https://uks.irkutsk.ru/upload/docs/ustav-uks.pdf",
+      "url": "https://raw.githubusercontent.com/github/training-kit/master/downloads/ja/github-git-cheat-sheet.pdf",
       "documentDate": "2022-05-17",
       "sort": 40
     }
@@ -191,19 +197,19 @@
       "title": "УКС завершил монтаж каркаса школы на Академической",
       "excerpt": "На площадке ведутся инженерные работы, подключение сетей и монтаж фасада.",
       "published_at": "2025-01-18T09:00:00+08:00",
-      "imageUrl": "https://uks.irkutsk.ru/local/templates/uks/build/images/news/school-frame.jpg"
+      "imageUrl": "https://uks.irkutsk.ru/wp-content/uploads/2025/09/uks_news_school_frame.jpg"
     },
     {
       "title": "Подписано соглашение о развитии квартала \"Возрождение\"",
       "excerpt": "Город и застройщик согласовали график работ и меры по благоустройству.",
       "published_at": "2025-01-12T12:00:00+08:00",
-      "imageUrl": "https://uks.irkutsk.ru/local/templates/uks/build/images/news/quarter-sign.jpg"
+      "imageUrl": "https://uks.irkutsk.ru/wp-content/uploads/2025/09/uks_news_quarter_sign.jpg"
     },
     {
       "title": "Стартовало благоустройство набережной Ангары",
       "excerpt": "Подрядчик приступил к монтажу амфитеатра и пирсов для маломерных судов.",
       "published_at": "2024-12-28T15:30:00+08:00",
-      "imageUrl": "https://uks.irkutsk.ru/local/templates/uks/build/images/news/embankment-start.jpg"
+      "imageUrl": "https://uks.irkutsk.ru/wp-content/uploads/2025/09/uks_news_embankment_start.jpg"
     }
   ]
 }
