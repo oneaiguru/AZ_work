@@ -291,6 +291,8 @@ function logDebug(...args) {
   }
 }
 
+logDebug('Using Directus URL', directusUrl);
+
 async function fetchWithTimeout(url, options = {}, timeoutMs = 15000) {
   if (options && options.signal) {
     return fetch(url, options);
@@ -309,6 +311,46 @@ async function fetchWithTimeout(url, options = {}, timeoutMs = 15000) {
   } finally {
     clearTimeout(timer);
   }
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function waitForDirectus() {
+  if (dryRun) {
+    return;
+  }
+  const attempts = Number.parseInt(process.env.SEED_DIRECTUS_MAX_ATTEMPTS || '12', 10);
+  const delay = Number.parseInt(process.env.SEED_DIRECTUS_RETRY_DELAY || '5000', 10);
+  const endpoints = [`${directusUrl}/server/health`, `${directusUrl}/server/ping`];
+  logStep('Waiting for Directus API to become available');
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    for (const url of endpoints) {
+      try {
+        const response = await fetchWithTimeout(url, { headers: { Accept: 'application/json' } }, 8000);
+        logDebug('Health check', url, '->', response.status);
+        if (response.ok) {
+          if (response.headers.get('content-type')?.includes('application/json')) {
+            const payload = await response.json();
+            const status = payload?.status || payload?.data?.status;
+            logDebug('Health payload', payload);
+            if (typeof status === 'string' && status.toLowerCase() !== 'ok') {
+              break;
+            }
+          }
+          return;
+        }
+      } catch (error) {
+        logDebug('Health check failed for', url, error.message);
+      }
+    }
+    if (attempt < attempts) {
+      logDebug(`Directus not ready yet (attempt ${attempt}/${attempts}) — waiting ${delay}ms before retry`);
+      await sleep(delay);
+    }
+  }
+  throw new Error('Directus API недоступен. Проверьте, что контейнер directus запущен и порт 8055 открыт.');
 }
 
 function withAuth(token, options = {}) {
@@ -825,6 +867,7 @@ async function main() {
       console.log('Запущен в режиме dry-run — запросы к Directus не выполняются.');
       token = 'dry-run';
     } else {
+      await waitForDirectus();
       token = await authenticate();
       await ensurePublicApiAccess(token);
     }
