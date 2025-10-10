@@ -14,6 +14,7 @@ let dataFile = path.join(__dirname, 'seed-data.json');
 let maxImages = 12;
 let waitTimeoutOverride;
 let waitIntervalOverride;
+let accessTokenOverride;
 const directusUrlOverrides = [];
 
 for (let index = 0; index < args.length; index += 1) {
@@ -65,6 +66,34 @@ for (let index = 0; index < args.length; index += 1) {
     const value = normalizeUrl(args[index + 1]);
     if (value) {
       directusUrlOverrides.push(value);
+    }
+    index += 1;
+    continue;
+  }
+  if (arg.startsWith('--token=')) {
+    accessTokenOverride = arg.slice('--token='.length).trim();
+    continue;
+  }
+  if (arg === '--token' && args[index + 1]) {
+    accessTokenOverride = args[index + 1].trim();
+    index += 1;
+    continue;
+  }
+  if (arg.startsWith('--token-file=')) {
+    const tokenPath = path.resolve(process.cwd(), arg.slice('--token-file='.length));
+    if (fs.existsSync(tokenPath)) {
+      accessTokenOverride = fs.readFileSync(tokenPath, 'utf8').trim();
+    } else {
+      console.warn('Cannot read token file:', tokenPath);
+    }
+    continue;
+  }
+  if (arg === '--token-file' && args[index + 1]) {
+    const tokenPath = path.resolve(process.cwd(), args[index + 1]);
+    if (fs.existsSync(tokenPath)) {
+      accessTokenOverride = fs.readFileSync(tokenPath, 'utf8').trim();
+    } else {
+      console.warn('Cannot read token file:', tokenPath);
     }
     index += 1;
     continue;
@@ -224,14 +253,15 @@ const directusWaitTimeoutMs = parsePositiveInteger(waitTimeoutOverride ?? proces
 const directusWaitIntervalMs = parsePositiveInteger(waitIntervalOverride ?? process.env.DIRECTUS_WAIT_INTERVAL_MS, 2000);
 const adminEmail = process.env.DIRECTUS_ADMIN_EMAIL;
 const adminPassword = process.env.DIRECTUS_ADMIN_PASSWORD;
+const adminStaticToken = (process.env.DIRECTUS_ADMIN_STATIC_TOKEN || '').trim();
 
-if (!adminEmail || !adminPassword) {
+if (!accessTokenOverride && !adminStaticToken && (!adminEmail || !adminPassword)) {
   if (dryRun) {
     console.warn('DIRECTUS_ADMIN_EMAIL/DIRECTUS_ADMIN_PASSWORD не заданы — используем фиктивные значения для dry-run.');
     process.env.DIRECTUS_ADMIN_EMAIL = process.env.DIRECTUS_ADMIN_EMAIL || 'dry-run@example.com';
     process.env.DIRECTUS_ADMIN_PASSWORD = process.env.DIRECTUS_ADMIN_PASSWORD || 'dry-run';
   } else {
-    console.error('DIRECTUS_ADMIN_EMAIL and DIRECTUS_ADMIN_PASSWORD must be set via environment variables or uks2/.env.');
+    console.error('DIRECTUS_ADMIN_EMAIL and DIRECTUS_ADMIN_PASSWORD must be set via environment variables or uks2/.env, or provide a static token with --token / DIRECTUS_ADMIN_STATIC_TOKEN.');
     process.exit(1);
   }
 }
@@ -307,16 +337,56 @@ function withAuth(token, options = {}) {
   if (options.body && !(options.body instanceof FormData)) {
     headers['Content-Type'] = 'application/json';
   }
-  return Object.assign({}, options, { headers });
+  const config = Object.assign({}, options, { headers });
+  if (token && token !== 'dry-run') {
+    config.directusAccessToken = token;
+  }
+  return config;
+}
+
+function appendAccessToken(url, token) {
+  if (!token) {
+    return url;
+  }
+  try {
+    const parsed = new URL(url);
+    if (!parsed.searchParams.has('access_token')) {
+      parsed.searchParams.append('access_token', token);
+    }
+    return parsed.toString();
+  } catch (error) {
+    const [base, hash] = url.split('#');
+    const separator = base.includes('?') ? '&' : '?';
+    const rebuilt = `${base}${separator}access_token=${encodeURIComponent(token)}`;
+    return hash ? `${rebuilt}#${hash}` : rebuilt;
+  }
+}
+
+function maskAccessToken(url) {
+  if (!url) {
+    return url;
+  }
+  try {
+    const parsed = new URL(url);
+    if (parsed.searchParams.has('access_token')) {
+      parsed.searchParams.set('access_token', '***');
+    }
+    return parsed.toString();
+  } catch (error) {
+    return url.replace(/access_token=[^&#]*/g, 'access_token=***');
+  }
 }
 
 async function requestJson(url, options = {}) {
+  const { directusAccessToken, ...fetchOptions } = options;
+  const requestUrl = directusAccessToken ? appendAccessToken(url, directusAccessToken) : url;
+  const safeUrl = directusAccessToken ? maskAccessToken(requestUrl) : requestUrl;
   let response;
   try {
-    response = await fetch(url, options);
+    response = await fetch(requestUrl, fetchOptions);
   } catch (error) {
-    const method = options.method || 'GET';
-    throw new Error(`Request to ${url} (${method}) failed: ${error.message || error}`, { cause: error });
+    const method = fetchOptions.method || 'GET';
+    throw new Error(`Request to ${safeUrl} (${method}) failed: ${error.message || error}`, { cause: error });
   }
   if (!response.ok) {
     let details = '';
@@ -326,7 +396,7 @@ async function requestJson(url, options = {}) {
     } catch (error) {
       details = await response.text();
     }
-    throw new Error(`Request to ${url} failed with status ${response.status}: ${details}`);
+    throw new Error(`Request to ${safeUrl} failed with status ${response.status}: ${details}`);
   }
   const contentType = response.headers.get('content-type');
   if (!contentType || !contentType.includes('application/json')) {
@@ -845,7 +915,15 @@ async function main() {
       token = 'dry-run';
     } else {
       await waitForDirectusAvailability();
-      token = await authenticate();
+      if (accessTokenOverride) {
+        logStep('Using Directus access token from CLI');
+        token = accessTokenOverride;
+      } else if (adminStaticToken) {
+        logStep('Using Directus static token from environment');
+        token = adminStaticToken;
+      } else {
+        token = await authenticate();
+      }
     }
 
     const importedImages = await collectImages(token);
