@@ -447,18 +447,42 @@ async function getPublicRoleContext(token) {
   if (!roleId) {
     const params = new URLSearchParams();
     params.set('fields', 'id,name');
-    const url = `${directusUrl}/roles/public?${params.toString()}`;
+    params.set('filter[name][_icontains]', 'public');
+    params.set('limit', '1');
+    const url = `${directusUrl}/roles?${params.toString()}`;
     triedEndpoints.push(url);
     try {
       const response = await requestJson(url, withAuth(token));
-      const match = response?.data;
+      const match = Array.isArray(response?.data) ? response.data[0] : null;
       if (match?.id) {
         roleId = match.id;
-        logDebug('Found public role via /roles/public', { id: roleId, name: match.name });
+        logDebug('Found public role via /roles search', { id: roleId, name: match.name });
       }
     } catch (error) {
       if (error?.status === 403) {
-        logDebug('Access to /roles/public denied, relying on environment or existing attachments');
+        logDebug('Access to /roles denied, relying on environment or existing attachments');
+      } else {
+        throw error;
+      }
+    }
+  }
+  if (!roleId) {
+    const params = new URLSearchParams();
+    params.set('fields', 'id,name');
+    params.set('filter[icon][_eq]', 'public');
+    params.set('limit', '1');
+    const url = `${directusUrl}/roles?${params.toString()}`;
+    triedEndpoints.push(url);
+    try {
+      const response = await requestJson(url, withAuth(token));
+      const match = Array.isArray(response?.data) ? response.data[0] : null;
+      if (match?.id) {
+        roleId = match.id;
+        logDebug('Found public role via icon filter', { id: roleId, name: match.name });
+      }
+    } catch (error) {
+      if (error?.status === 403) {
+        logDebug('Access to /roles with icon filter denied, relying on environment or existing attachments');
       } else {
         throw error;
       }
