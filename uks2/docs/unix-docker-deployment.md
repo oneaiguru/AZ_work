@@ -180,6 +180,12 @@ sudo tar czf minio-data-$(date +%F).tar.gz -C /var/lib/docker/volumes/ $(docker 
      ```
   4. Перезапустите Directus: `docker compose restart directus` и проверьте логи `docker compose logs -f directus`.
   5. Подробная инструкция с дополнительными сценариями приведена в [docs/directus-troubleshooting.md](directus-troubleshooting.md).
+- **Directus пишет `storage:local:responseTime in ERROR state` или health-check возвращает `EACCES`** — перезапустите сервис `directus-storage-permissions`:
+  ```bash
+  docker compose up directus-storage-permissions
+  docker compose restart directus
+  ```
+  Скрипт создаст каталог `directus/uploads` и выставит владельца `1000:1000`, чтобы контейнер Directus смог записывать файлы диагностики и загрузки.
 - **Нет доступа к MinIO** — проверьте, что бакеты созданы и креденшелы из `.env` совпадают.
 - **MinIO пишет `has incomplete body` по файлам `.usage.json` / `.bloomcycle.bin`** — после некорректной остановки могут повредиться временные метаданные. При следующем запуске контейнер выполнит `ops/minio/start-minio.sh` и удалит эти файлы, чтобы MinIO пересоздал их. Если сообщение остаётся, остановите стек и удалите локальный том `docker volume rm uks2_minio_data`.
 
