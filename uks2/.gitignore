@@ -19,7 +19,8 @@ frontend/.env*
 directus/.env*
 
 # Local data
-directus/uploads/
+directus/uploads/*
+!directus/uploads/.gitkeep
 frontend/.vercel/
 .docker/
 .DS_Store
