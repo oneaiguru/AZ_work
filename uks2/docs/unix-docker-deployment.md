@@ -67,6 +67,7 @@ cd AZ_work/uks2
    - `NEXT_PUBLIC_CMS_URL=https://uks.delightsoft.ru/cms`
    - `NEXT_PUBLIC_ASSETS_URL=https://uks.delightsoft.ru/cms/assets`
    - `DIRECTUS_PUBLIC_URL=https://uks.delightsoft.ru/cms`
+   - `DIRECTUS_SEED_URL=https://uks.delightsoft.ru/cms`
    - `DIRECTUS_COOKIE_DOMAIN=.uks.delightsoft.ru`
    - `DIRECTUS_REFRESH_COOKIE_PATH=/cms`
    - `PGADMIN_BASE_PATH=/db`
@@ -80,7 +81,7 @@ cd AZ_work/uks2
 
 Файл `ops/nginx/default.conf` уже содержит правила для проксирования:
 - `/` → Next.js (`frontend:3000`)
-- `/cms/` → Directus (`directus:8055`)
+- `/cms/` и `/admin/` → Directus (`directus:8055`)
 - `/db/` → pgAdmin (`pgadmin:80`)
 
 По умолчанию контейнер слушает только HTTP (порт 80). Чтобы включить HTTPS:
@@ -116,7 +117,7 @@ docker compose logs -f directus
 
 После запуска сервисы будут доступны по адресам из `.env`, например:
 - `https://uks.delightsoft.ru` — публичный сайт (Next.js)
-- `https://uks.delightsoft.ru/cms/admin` — панель Directus
+- `https://uks.delightsoft.ru/cms/admin` (или `https://uks.delightsoft.ru/admin/`) — панель Directus
 - `https://uks.delightsoft.ru/cms/items/...` — REST API Directus
 - `https://uks.delightsoft.ru/cms/graphql` — GraphQL API
 - `https://uks.delightsoft.ru/db` — pgAdmin (PostgreSQL UI)
@@ -179,6 +180,12 @@ sudo tar czf minio-data-$(date +%F).tar.gz -C /var/lib/docker/volumes/ $(docker 
      ```
   4. Перезапустите Directus: `docker compose restart directus` и проверьте логи `docker compose logs -f directus`.
   5. Подробная инструкция с дополнительными сценариями приведена в [docs/directus-troubleshooting.md](directus-troubleshooting.md).
+- **Directus пишет `storage:local:responseTime in ERROR state` или health-check возвращает `EACCES`** — перезапустите сервис `directus-storage-permissions`:
+  ```bash
+  docker compose up directus-storage-permissions
+  docker compose restart directus
+  ```
+  Скрипт создаст каталог `directus/uploads` и выставит владельца `1000:1000`, чтобы контейнер Directus смог записывать файлы диагностики и загрузки.
 - **Нет доступа к MinIO** — проверьте, что бакеты созданы и креденшелы из `.env` совпадают.
 - **MinIO пишет `has incomplete body` по файлам `.usage.json` / `.bloomcycle.bin`** — после некорректной остановки могут повредиться временные метаданные. При следующем запуске контейнер выполнит `ops/minio/start-minio.sh` и удалит эти файлы, чтобы MinIO пересоздал их. Если сообщение остаётся, остановите стек и удалите локальный том `docker volume rm uks2_minio_data`.
 
