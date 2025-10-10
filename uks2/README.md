@@ -35,8 +35,8 @@ uks2/
    docker compose exec postgres psql -U "$DATABASE_USERNAME" -d "$DATABASE_NAME" -c "ALTER USER \"$DATABASE_USERNAME\" WITH PASSWORD '$DATABASE_PASSWORD';"
    ```
    > ⚠️ Если команда выполняется через `sudo` и вы видите `Error: ENOENT: no such file or directory, uv_cwd`, значит root-пользователь не может обратиться к текущему каталогу. Запустите генератор от обычного пользователя (без `sudo`) либо выполните `sudo bash -c 'cd /opt/AZ_work/uks2 && node scripts/generate-env.js --force'`, подставив фактический путь до каталога `uks2`.
-2. Если хотите открывать стек по читаемому домену (например, `uks2.localhost`), добавьте строку `127.0.0.1 uks2.localhost` в `/etc/hosts`. Так Nginx будет проксировать все запросы на `http://uks2.localhost`, `http://uks2.localhost/cms` и `http://uks2.localhost/db`.
-3. Обновите URL и cookie-параметры в `.env`: `NEXT_PUBLIC_SITE_URL`, `NEXT_PUBLIC_CMS_URL`, `NEXT_PUBLIC_ASSETS_URL`, `DIRECTUS_PUBLIC_URL`, `DIRECTUS_COOKIE_DOMAIN`, `DIRECTUS_REFRESH_COOKIE_PATH` и `PGADMIN_BASE_PATH`. В продакшн-конфигурации используется `https://uks.delightsoft.ru`, поэтому значения уже включают подкаталоги `/cms` и `/db`. Для локального запуска замените их, например, на `http://uks2.localhost`, `http://uks2.localhost/cms`, `http://uks2.localhost/cms/assets`, `DIRECTUS_COOKIE_DOMAIN=` (пустая строка) и `PGADMIN_BASE_PATH=/db`. Если вы работаете по HTTP, дополнительно установите `DIRECTUS_REFRESH_COOKIE_SECURE=false`, чтобы Directus выдавал cookie без флага `Secure`.
+2. Если хотите открывать стек по читаемому домену (например, `uks2.localhost`), добавьте строку `127.0.0.1 uks2.localhost` в `/etc/hosts`. Так Nginx будет проксировать все запросы на `http://uks2.localhost`, `http://uks2.localhost/admin` и `http://uks2.localhost/db`.
+3. Обновите URL и cookie-параметры в `.env`: `NEXT_PUBLIC_SITE_URL`, `NEXT_PUBLIC_CMS_URL`, `NEXT_PUBLIC_ASSETS_URL`, `DIRECTUS_PUBLIC_URL`, `DIRECTUS_COOKIE_DOMAIN`, `DIRECTUS_REFRESH_COOKIE_PATH` и `PGADMIN_BASE_PATH`. В продакшн-конфигурации используется `https://uks.delightsoft.ru`, поэтому значения уже включают подкаталоги `/admin` и `/db`. Для локального запуска замените их, например, на `http://uks2.localhost`, `http://uks2.localhost/admin`, `http://uks2.localhost/admin/assets`, `DIRECTUS_COOKIE_DOMAIN=` (пустая строка) и `PGADMIN_BASE_PATH=/db`. Если вы работаете по HTTP, дополнительно установите `DIRECTUS_REFRESH_COOKIE_SECURE=false`, чтобы Directus выдавал cookie без флага `Secure`.
 
 ## Локальная разработка без Docker
 
@@ -60,7 +60,7 @@ npx directus start
 ```bash
 npx directus schema apply snapshot.yaml
 ```
-После запуска админка будет доступна на <http://localhost:8055/admin>. Создайте пользователя с учётными данными из `.env` (`DIRECTUS_ADMIN_EMAIL`, `DIRECTUS_ADMIN_PASSWORD`). Чтобы работать через Nginx по пути `/cms`, обновите `DIRECTUS_PUBLIC_URL` (например, `http://uks2.localhost/cms`) и при необходимости `DIRECTUS_COOKIE_DOMAIN` — значения должны совпадать с адресом, который вы используете в браузере.
+После запуска админка будет доступна на <http://localhost:8055/admin>. Создайте пользователя с учётными данными из `.env` (`DIRECTUS_ADMIN_EMAIL`, `DIRECTUS_ADMIN_PASSWORD`). Чтобы работать через Nginx по пути `/admin`, обновите `DIRECTUS_PUBLIC_URL` (например, `http://uks2.localhost/admin`) и при необходимости `DIRECTUS_COOKIE_DOMAIN` — значения должны совпадать с адресом, который вы используете в браузере.
 
 ## Запуск через Docker Compose
 
@@ -73,9 +73,9 @@ docker compose up --build
 
 Сервисы и точки входа (по умолчанию, см. `.env`):
 - `https://uks.delightsoft.ru` — публичный фронтенд.
-- `https://uks.delightsoft.ru/cms` — Directus (REST, GraphQL, админка доступна по `/cms/admin`).
+- `https://uks.delightsoft.ru/admin` — Directus (REST, GraphQL, админка доступна по `/admin`).
 - `https://uks.delightsoft.ru/db` — pgAdmin (PostgreSQL UI, логин/пароль из `PGADMIN_DEFAULT_EMAIL` / `PGADMIN_DEFAULT_PASSWORD`).
-- `http://uks2.localhost`, `http://uks2.localhost/cms` и `http://uks2.localhost/db` — пример локальной среды через `/etc/hosts`.
+- `http://uks2.localhost`, `http://uks2.localhost/admin` и `http://uks2.localhost/db` — пример локальной среды через `/etc/hosts`.
 - `http://localhost:8055` — прямой доступ к Directus без Nginx-прокси.
 - `http://localhost:9001` — MinIO console (логин/пароль из `.env`).
 - `redis://localhost:6379` — Redis для кеша Directus.
@@ -99,7 +99,7 @@ Redis выступает высокоскоростным хранилищем �
 
 ### Cookie Directus и ошибки 400
 
-Directus хранит refresh-токен в HTTP-only cookie. Если домен в cookie не совпадает с доменом в адресной строке, запрос `/auth/refresh` или `/auth/login` вернёт 400. Используйте `DIRECTUS_COOKIE_DOMAIN` (пустая строка = автоматический выбор текущего домена), а также `DIRECTUS_REFRESH_COOKIE_SECURE` и `DIRECTUS_REFRESH_COOKIE_SAME_SITE`, чтобы подстроить поведение под локальные и боевые домены. В `.env.example` по умолчанию установлено значение `.uks.delightsoft.ru`, чтобы cookie были доступны как для `cms.uks.delightsoft.ru`, так и для API-запросов фронтенда.
+Directus хранит refresh-токен в HTTP-only cookie. Если домен в cookie не совпадает с доменом в адресной строке, запрос `/auth/refresh` или `/auth/login` вернёт 400. Используйте `DIRECTUS_COOKIE_DOMAIN` (пустая строка = автоматический выбор текущего домена), а также `DIRECTUS_REFRESH_COOKIE_SECURE` и `DIRECTUS_REFRESH_COOKIE_SAME_SITE`, чтобы подстроить поведение под локальные и боевые домены. В `.env.example` по умолчанию установлено значение `.uks.delightsoft.ru`, чтобы cookie были доступны для `uks.delightsoft.ru` (включая вложенный путь `/admin`) и API-запросов фронтенда.
 
 ### Подготовка бакетов MinIO
 
@@ -132,7 +132,7 @@ docker compose exec minio mc mb -p local/$MINIO_BUCKET_PRIVATE
 
 ### 1. Вход в админку
 
-1. Откройте <http://uks2.localhost/cms/admin> (либо домен, указанный в `DIRECTUS_PUBLIC_URL`).
+1. Откройте <http://uks2.localhost/admin> (либо домен, указанный в `DIRECTUS_PUBLIC_URL`).
 2. Авторизуйтесь под пользователем, созданным при bootstrap (`DIRECTUS_ADMIN_EMAIL` / `DIRECTUS_ADMIN_PASSWORD`).
 3. При необходимости создайте отдельных редакторов в разделе **Настройки → Пользователи** и назначьте им роль `editor`.
 
