@@ -17,7 +17,7 @@
 
 ## 1. Доступ и роли
 
-1. Откройте адрес из переменной `DIRECTUS_PUBLIC_URL` (боевой сервер — `https://cms.uks.delightsoft.ru/admin`, локальная разработка — `https://cms.uks2.localhost/admin`).
+1. Откройте адрес из переменной `DIRECTUS_PUBLIC_URL` (боевой сервер — `https://uks.delightsoft.ru/cms/admin`, локальная разработка — `http://uks2.localhost/cms/admin`).
 2. Авторизуйтесь с учётными данными администратора (`DIRECTUS_ADMIN_EMAIL` / `DIRECTUS_ADMIN_PASSWORD`).
 3. Добавить новых сотрудников можно через **Настройки → Пользователи**. Доступные роли:
    - **admin** — полный доступ, изменение схемы и настроек;

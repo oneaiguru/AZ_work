@@ -1,15 +1,15 @@
-# Развёртывание UKS2 на Unix-сервере с Docker и Traefik
+# Развёртывание UKS2 на Unix-сервере с Docker и Nginx
 
-Этот гайд описывает установку альтернативного стека `uks2/` (Next.js + Directus + Traefik) на Linux-сервере и привязку публичного доменного имени с автоматическим выпуском TLS-сертификата через Let's Encrypt.
+Этот гайд описывает установку альтернативного стека `uks2/` (Next.js + Directus + Nginx) на Linux-сервере и привязку публичного домена. По умолчанию Nginx публикует HTTP на 80‑м порту, а HTTPS настраивается вручную — вы можете использовать Certbot, внешний балансировщик или существующие сертификаты и смонтировать их в контейнер.
 
 ## 1. Требования к серверу
 
 - 64‑битная ОС (Ubuntu 22.04+, Debian 12+, Rocky Linux 9 или аналогичная).
 - Права sudo и доступ по SSH.
-- Открытые порты 80 и 443 из внешней сети (для HTTP-01 и HTTPS). Если 80 заблокирован и нет возможности его открыть, переключите `TRAEFIK_ACME_CHALLENGE` в режим `tls` или `dns` (см. раздел про Traefik ниже).
+- Открытый порт 80 из внешней сети. Порт 443 понадобится, если Nginx будет обслуживать HTTPS напрямую.
 - Установленные Docker Engine 24+ и Docker Compose Plugin 2.24+.
-- Зарегистрированные домены, которые будут вести на фронтенд и CMS (для боевого окружения используются `uks.delightsoft.ru` и `cms.uks.delightsoft.ru`).
-- Аккаунт на почте для уведомлений Let's Encrypt (адрес задаётся переменной `TRAEFIK_CERTIFICATES_ACME_EMAIL`, либо запасной `TRAEFIK_EMAIL`).
+- Домены, которые ведут на сервер (в бою используется `uks.delightsoft.ru`).
+- (Опционально) Готовые сертификаты или возможность запустить Certbot/lego для выпуска Let’s Encrypt.
 
 ### 1.1 Установка Docker и Compose (Ubuntu/Debian)
 ```bash
@@ -62,39 +62,42 @@ cd AZ_work/uks2
    ```
    Если вы запускаете генератор через `sudo` и получаете ответ `Error: ENOENT: no such file or directory, uv_cwd`, выполните команду от своего пользователя (без `sudo`). Либо запустите `sudo bash -c 'cd /opt/AZ_work/uks2 && node scripts/generate-env.js --force'`, заменив путь на фактическое расположение каталога `uks2` — так root сначала перейдёт в нужную директорию и ошибка пропадёт.
 
-2. Откройте `.env` и настройте домены и URL:
-  - `TRAEFIK_SITE_DOMAIN=uks.delightsoft.ru`
-  - `TRAEFIK_CMS_DOMAIN=cms.uks.delightsoft.ru`
-  - `TRAEFIK_DB_DOMAIN=db.uks.delightsoft.ru`
-  - `TRAEFIK_ENTRYPOINTS_HTTP_ADDRESS=:80` (порт HTTP, нужен для HTTP-01 challenge)
-  - `TRAEFIK_ENTRYPOINTS_HTTPS_ADDRESS=:443` (порт HTTPS, укажите другой при нестандартном пробросе)
-  - `NEXT_PUBLIC_SITE_URL=https://uks.delightsoft.ru`
-  - `NEXT_PUBLIC_CMS_URL=https://cms.uks.delightsoft.ru`
-  - `NEXT_PUBLIC_ASSETS_URL=https://cms.uks.delightsoft.ru/assets`
-  - `DIRECTUS_PUBLIC_URL=https://cms.uks.delightsoft.ru`
-  - `CMS_INTERNAL_URL=http://directus:8055`
-  - `DIRECTUS_COOKIE_DOMAIN=.uks.delightsoft.ru`
-  - `DIRECTUS_REFRESH_COOKIE_SECURE=true`
-  - `TRAEFIK_CERTIFICATES_ACME_EMAIL=devops@example.ru` (рабочая почта для уведомлений Let’s Encrypt)
-  - `TRAEFIK_CERTIFICATES_ACME_STORAGE=/acme.json` (путь хранения сертификатов внутри контейнера)
-  - `TRAEFIK_LOG_LEVEL=INFO`
-  - `TRAEFIK_ACME_CHALLENGE=http` (смените на `tls` или `dns`, если порт 80 недоступен)
+2. Откройте `.env` и настройте основные URL и базовые пути:
+   - `NEXT_PUBLIC_SITE_URL=https://uks.delightsoft.ru`
+   - `NEXT_PUBLIC_CMS_URL=https://uks.delightsoft.ru/cms`
+   - `NEXT_PUBLIC_ASSETS_URL=https://uks.delightsoft.ru/cms/assets`
+   - `DIRECTUS_PUBLIC_URL=https://uks.delightsoft.ru/cms`
+   - `DIRECTUS_COOKIE_DOMAIN=.uks.delightsoft.ru`
+   - `DIRECTUS_REFRESH_COOKIE_PATH=/cms`
+   - `PGADMIN_BASE_PATH=/db`
+   - `CMS_INTERNAL_URL=http://directus:8055`
 
-> ℹ️ Если `TRAEFIK_CERTIFICATES_ACME_EMAIL` (или устаревшая `TRAEFIK_EMAIL`) оставить пустой, Traefik подставит резервный адрес вида `letsencrypt@<ваш_домен>` и продолжит запуск. Это полезно для первичной проверки конфигурации, но в бою обязательно пропишите рабочий ящик — Let’s Encrypt присылает на него уведомления о скором истечении сертификата.
+   Для локальной среды можно использовать `http://uks2.localhost`, `http://uks2.localhost/cms`, `DIRECTUS_COOKIE_DOMAIN=` (пустое значение) и `PGADMIN_BASE_PATH=/db`. Если вы обслуживаете сайт по HTTP, установите `DIRECTUS_REFRESH_COOKIE_SECURE=false`, чтобы Directus устанавливал cookie без флага Secure.
 
-3. При необходимости смените `DIRECTUS_ADMIN_EMAIL` / `DIRECTUS_ADMIN_PASSWORD`, `PGADMIN_DEFAULT_EMAIL` / `PGADMIN_DEFAULT_PASSWORD` и другие параметры (SMTP, MinIO бакеты, настройки кэша).
+3. При необходимости скорректируйте SMTP, MinIO, Redis и учётные данные админов (`DIRECTUS_ADMIN_EMAIL`, `PGADMIN_DEFAULT_EMAIL` и т. д.).
 
-## 4. Настройка Traefik и HTTPS
+## 4. Настройка Nginx и HTTPS
 
-1. Стартовый скрипт Traefik автоматически создаёт `ops/traefik/acme.json` и выставляет права `600`, поэтому вручную задавать разрешения больше не нужно. Если вы удаляли файл, он появится снова при следующем запуске контейнера.
-2. Убедитесь, что DNS-записи доменов (`A`/`AAAA`) указывают на IP сервера. Для поддоменов CMS добавьте запись `cms.uks.delightsoft.ru` -> `X.X.X.X` и при необходимости укажите CNAME на `uks.delightsoft.ru`, если используется один и тот же IP.
-3. Если сервер находится за файрволом, откройте порты 80 и 443:
-   ```bash
-   sudo ufw allow 80/tcp
-   sudo ufw allow 443/tcp
-   sudo ufw reload
+Файл `ops/nginx/default.conf` уже содержит правила для проксирования:
+- `/` → Next.js (`frontend:3000`)
+- `/cms/` → Directus (`directus:8055`)
+- `/db/` → pgAdmin (`pgadmin:80`)
+
+По умолчанию контейнер слушает только HTTP (порт 80). Чтобы включить HTTPS:
+
+1. Выпустите сертификат любым удобным способом (например, `certbot certonly --standalone -d uks.delightsoft.ru`).
+2. Скопируйте `fullchain.pem` и `privkey.pem` в каталог `ops/nginx/certs/` и выставьте права `600`.
+3. Добавьте в `docker-compose.yml` монтирование каталога с сертификатами:
+   ```yaml
+   nginx:
+     volumes:
+       - ./ops/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+       - ./ops/nginx/certs:/etc/nginx/certs:ro
    ```
-4. Traefik автоматически выпустит сертификаты при первом обращении к доменам. Используемый challenge определяется переменной `TRAEFIK_ACME_CHALLENGE` (`http`, `tls` или `dns`). Следите за логами контейнера `traefik`.
+4. Расширьте `ops/nginx/default.conf`, добавив серверный блок `listen 443 ssl http2;` с путями к сертификатам и редиректом с HTTP на HTTPS.
+5. Перезапустите стек: `docker compose up -d nginx`.
+
+Альтернатива — оставить контейнер на 80‑м порту, а TLS терминировать на внешнем балансировщике/ingress.
 
 ## 5. Развёртывание контейнеров
 
@@ -104,26 +107,25 @@ docker compose pull
 NODE_ENV=production docker compose up -d --build
 ```
 
-Команда соберёт образ фронтенда, скачает Directus, Traefik, PostgreSQL, Redis и MinIO, затем запустит их в фоне. Все сервисы настроены с политикой `restart: unless-stopped`, поэтому после перезагрузки Docker Engine или самого сервера они автоматически поднимутся заново. Проверить статус можно так:
+Команда соберёт образ фронтенда, скачает Directus, PostgreSQL, Redis, MinIO, pgAdmin и Nginx, затем запустит их в фоне. Все сервисы настроены с политикой `restart: unless-stopped`, поэтому после перезагрузки Docker Engine или самого сервера они автоматически поднимутся. Проверить статус можно так:
 ```bash
 docker compose ps
-docker compose logs -f traefik
+docker compose logs -f nginx
 docker compose logs -f directus
 ```
 
-После запуска сервисы будут доступны по HTTPS:
+После запуска сервисы будут доступны по адресам из `.env`, например:
 - `https://uks.delightsoft.ru` — публичный сайт (Next.js)
-- `https://cms.uks.delightsoft.ru/admin` — панель Directus
-- `https://cms.uks.delightsoft.ru/items/...` — REST API Directus
-- `https://cms.uks.delightsoft.ru/graphql` — GraphQL API
-- `https://db.uks.delightsoft.ru` — pgAdmin (PostgreSQL UI)
-- Любые обращения по `http://` автоматически перенаправляются на HTTPS Traefik.
+- `https://uks.delightsoft.ru/cms/admin` — панель Directus
+- `https://uks.delightsoft.ru/cms/items/...` — REST API Directus
+- `https://uks.delightsoft.ru/cms/graphql` — GraphQL API
+- `https://uks.delightsoft.ru/db` — pgAdmin (PostgreSQL UI)
 
-> Первое обращение к доменам может занять 30–60 секунд, пока Traefik получает сертификат. До завершения процедуры браузер может показывать ошибку 404/502 или предупреждение о небезопасном соединении — дождитесь окончания выдачи сертификата и перезагрузите страницу.
+Если TLS настроен внешним балансировщиком, замените `https://` на актуальную схему.
 
 ## 6. Первичная настройка Directus
 
-1. Зайдите в админку `https://cms.uks.delightsoft.ru/admin` и войдите с данными из `.env`.
+1. Зайдите в админку `https://uks.delightsoft.ru/cms/admin` и войдите с данными из `.env`.
 2. Проверьте раздел **Settings → Storage** и привяжите бакеты MinIO (публичный и приватный).
 3. Включите запланированные задачи (flows) или интеграции, если они нужны.
 4. Создайте пользователей-редакторов и назначьте им готовые роли из снапшота.
@@ -162,11 +164,10 @@ sudo tar czf minio-data-$(date +%F).tar.gz -C /var/lib/docker/volumes/ $(docker 
 
 ## 9. Устранение неполадок
 
-- **HTTP 400 при логине в Directus** — проверьте `DIRECTUS_PUBLIC_URL` и `DIRECTUS_COOKIE_DOMAIN`, они должны совпадать с фактическим доменом.
-- **Traefik не получает сертификат / браузер пишет `ERR_CERT_AUTHORITY_INVALID`** — убедитесь в доступности порта 80 (для HTTP-01) или установите `TRAEFIK_ACME_CHALLENGE=tls`, если возможен только 443. Проверьте DNS-записи, логи `docker compose logs traefik` и следуйте инструкции [https-troubleshooting.md](https-troubleshooting.md). Скрипт запуска Traefik автоматически приводит `ops/traefik/acme.json` к нужным правам, поэтому достаточно удалить файл и перезапустить Traefik, чтобы форсировать повторный выпуск.
-- **Directus не стартует из-за схемы** — примените снапшот вручную либо удалите проблемные коллекции через CLI.
-- **Directus перезапускается с ошибкой `password authentication failed for user "uks2"`** — пароль в `.env` не совпадает с тем,
-  что хранится в PostgreSQL. Алгоритм восстановления:
+- **HTTP 400 при логине в Directus** — проверьте `DIRECTUS_PUBLIC_URL`, `DIRECTUS_COOKIE_DOMAIN` и `DIRECTUS_REFRESH_COOKIE_PATH`, они должны соответствовать фактическому адресу.
+- **Nginx отдаёт 502/504** — убедитесь, что контейнеры `frontend`, `directus` и `pgadmin` запущены (`docker compose ps`). Проверьте их логи.
+- **pgAdmin открывается без стилей или ломается авторизация** — значение `PGADMIN_BASE_PATH` должно совпадать с префиксом в конфигурации Nginx (`/db`). После изменения обновите `.env`, перезапустите `pgadmin` и `nginx`.
+- **Directus перезапускается с ошибкой `password authentication failed for user "uks2"`** — пароль в `.env` не совпадает с тем, что хранится в PostgreSQL. Алгоритм восстановления:
   1. Убедитесь, что контейнер PostgreSQL запущен: `docker compose up -d postgres`.
   2. Найдите в текущем `.env` значения `DATABASE_USERNAME`, `DATABASE_NAME`, `DATABASE_PASSWORD`.
   3. Экранируйте новый пароль и выполните `ALTER USER`, чтобы установить значение из `.env`:
@@ -179,8 +180,6 @@ sudo tar czf minio-data-$(date +%F).tar.gz -C /var/lib/docker/volumes/ $(docker 
   4. Перезапустите Directus: `docker compose restart directus` и проверьте логи `docker compose logs -f directus`.
   5. Подробная инструкция с дополнительными сценариями приведена в [docs/directus-troubleshooting.md](directus-troubleshooting.md).
 - **Нет доступа к MinIO** — проверьте, что бакеты созданы и креденшелы из `.env` совпадают.
-- **MinIO пишет `has incomplete body` по файлам `.usage.json` / `.bloomcycle.bin`** — после некорректной остановки могут повредиться
-  временные метаданные. При следующем запуске контейнер выполнит `ops/minio/start-minio.sh` и удалит эти файлы, чтобы MinIO
-  пересоздал их. Если сообщение остаётся, остановите стек и удалите локальный том `docker volume rm uks2_minio_data`.
+- **MinIO пишет `has incomplete body` по файлам `.usage.json` / `.bloomcycle.bin`** — после некорректной остановки могут повредиться временные метаданные. При следующем запуске контейнер выполнит `ops/minio/start-minio.sh` и удалит эти файлы, чтобы MinIO пересоздал их. Если сообщение остаётся, остановите стек и удалите локальный том `docker volume rm uks2_minio_data`.
 
-После выполнения шагов сайт будет обслуживаться по HTTPS с автоматическим продлением сертификатов и готовой CMS для управления контентом.
+После выполнения шагов сайт будет обслуживаться Nginx, а CMS и pgAdmin будут доступны по вложенным путям `/cms` и `/db`.

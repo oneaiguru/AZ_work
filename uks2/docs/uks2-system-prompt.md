@@ -9,18 +9,18 @@
 1. Архитектура и стек
    - Фронтенд: Next.js 14 (App Router), TypeScript, React Server Components, ESLint + Prettier. Настрой Vercel analytics выключенно, i18n не требуется.
    - CMS: Directus 11 как headless бэкенд, PostgreSQL 15 как основная база, Redis для кеша, MinIO как S3-хранилище, pgAdmin 4 как UI для БД.
-   - Обвязка: Docker Compose, Traefik 3.1 обратный прокси c HTTPS (HTTP→HTTPS редирект, dashboard на 8080), автоматический выпуск сертификатов Let's Encrypt.
+   - Обвязка: Docker Compose, Nginx reverse proxy с маршрутизацией по путям (`/`, `/cms/`, `/db/`) и ручной поддержкой TLS (сертификаты монтируются в контейнер или выдаются внешним балансировщиком).
    - Сервисы должны подниматься одной командой `docker compose up --build`.
 
-2. Доменные имена и Traefik
-   - Используй домены: `uks.delightsoft.ru` (публичный сайт), `cms.uks.delightsoft.ru` (Directus), `db.uks.delightsoft.ru` (pgAdmin); для локалки предусмотрены `*.uks2.localhost`.
-   - Настрой entrypoints `web: :80` и `websecure: :443`, docker provider с `exposedByDefault=false`, резолвер `le` для ACME (HTTP-01 по умолчанию, возможность переключить на TLS-ALPN-01 и DNS-01 через переменные окружения).
-   - Traefik должен публиковать dashboard (8080) и хранить сертификаты в `acme.json` с правами 600. Учти стартовый скрипт, создающий файл и прокладывающий challenge.
+2. Доменные имена и Nginx
+   - Основной домен: `uks.delightsoft.ru`. CMS должна открываться по `https://uks.delightsoft.ru/cms`, а pgAdmin — по `https://uks.delightsoft.ru/db`. Для локальной разработки можно использовать `uks2.localhost`.
+   - Настрой Nginx на проксирование: `/` → фронтенд (Next.js), `/cms/` → Directus, `/db/` → pgAdmin. Добавь редирект с `/cms` на `/cms/` и `/db` на `/db/`.
+   - Предусмотри подключение TLS: отдельный серверный блок `listen 443 ssl http2`, чтение `fullchain.pem` / `privkey.pem` из каталога `ops/nginx/certs`, а также редирект с HTTP на HTTPS.
 
 3. Docker Compose
-   - Оформи сервисы: `frontend`, `directus`, `postgres`, `redis`, `minio`, `pgadmin`, `traefik`. Пропиши перезапуск `unless-stopped`.
-   - Включи готовые healthchecks для Postgres и MinIO, зависимости (`depends_on`) и именованные volumes (`postgres_data`, `directus_uploads`, `minio_data`, `traefik_letsencrypt`).
-   - Для `frontend` и `directus` подключи Traefik через лейблы, опиши окружение через `.env` (см. пункт 5).
+   - Оформи сервисы: `frontend`, `directus`, `postgres`, `redis`, `minio`, `pgadmin`, `nginx`. Пропиши перезапуск `unless-stopped`.
+   - Включи готовые healthchecks для Postgres и MinIO, зависимости (`depends_on`) и именованные volumes (`postgres_data`, `directus_uploads`, `minio_data`).
+   - Настрой Nginx так, чтобы он зависел от фронтенда, Directus и pgAdmin, и монтируй `ops/nginx/default.conf` плюс каталог с сертификатами.
 
 4. UI/UX дизайн сайта
    - Главная страница — много секций: герой с CTA, блок "О компании", флагманский проект с таймлайном, карточки проектов, таблица документов, карточки закупок, блок новостей, контакты, липкое меню.
@@ -31,7 +31,7 @@
    - Придерживайся современного муниципального тона: минимализм, большие заголовки (clamp до 3.75rem), фирменный шрифт Inter, адаптивные гриды.
 
 5. Настройка окружения
-   - `.env` должен содержать: домены Traefik, почту для ACME, креды Directus (ADMIN_EMAIL/PASSWORD, COOKIE_DOMAIN, PUBLIC_URL, REFRESH_COOKIE_SECURE), параметры PostgreSQL (DATABASE_HOST/NAME/USER/PASSWORD), переменные Redis, MinIO (ROOT_USER/PASSWORD, BUCKET_PUBLIC/PRIVATE), pgAdmin (`PGADMIN_DEFAULT_EMAIL/PASSWORD`).
+   - `.env` должен содержать: публичные URL (`NEXT_PUBLIC_SITE_URL`, `NEXT_PUBLIC_CMS_URL`, `NEXT_PUBLIC_ASSETS_URL`), значения для Directus (ADMIN_EMAIL/PASSWORD, PUBLIC_URL, COOKIE_DOMAIN, REFRESH_COOKIE_SECURE, REFRESH_COOKIE_PATH), параметры PostgreSQL (DATABASE_HOST/NAME/USER/PASSWORD), переменные Redis, MinIO (ROOT_USER/PASSWORD, BUCKET_PUBLIC/PRIVATE) и pgAdmin (`PGADMIN_DEFAULT_EMAIL/PASSWORD`, `PGADMIN_BASE_PATH`).
    - Пропиши генератор `.env` на Node.js (`scripts/generate-env.js`) с режимами `--force` и `--rotate-db-password`, который сохраняет существующий пароль БД и при необходимости выполняет `ALTER USER` через `docker compose exec postgres`.
 
 6. Структура данных Directus (snapshot)
@@ -51,8 +51,8 @@
 
 8. Документация
    - Обнови `README.md` с инструкциями по запуску, хостам, значениям `.env`, ролям пользователей и ссылками на гайды: деплой на Unix, устранение ошибок HTTPS, управление контентом.
-   - Опиши в `docs/unix-docker-deployment.md` шаги: подготовка сервера, настройка DNS, запуск Docker, обновление сертификатов, резервное копирование.
-   - Добавь troubleshooting для Traefik, Directus и MinIO (например, автопочинка `.usage.json` и `.bloomcycle.bin`).
+   - Опиши в `docs/unix-docker-deployment.md` шаги: подготовка сервера, настройка DNS, запуск Docker, подключение сертификатов к Nginx, резервное копирование.
+   - Добавь troubleshooting для Nginx/HTTPS, Directus и MinIO (например, автопочинка `.usage.json` и `.bloomcycle.bin`).
 
 Выход: структурированное техническое задание + пошаговая инструкция (архитектура, конфигурации, схемы БД, примеры кода и дизайна) и рекомендации по поддержке.
 ```
