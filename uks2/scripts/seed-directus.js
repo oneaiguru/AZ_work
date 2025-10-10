@@ -428,197 +428,52 @@ async function requestJson(url, options = {}) {
   return response.json();
 }
 
-function isDnsErrorCode(code) {
-  return ['EAI_AGAIN', 'ENOTFOUND', 'EAI_FAIL', 'EAI_NODATA', 'EAI_NONAME'].includes(code);
+async function getPublicRoleId(token) {
+  const params = new URLSearchParams();
+  params.set('limit', '-1');
+  params.append('fields[]', 'id');
+  params.append('fields[]', 'name');
+  params.append('fields[]', 'key');
+  const url = `${directusUrl}/roles?${params.toString()}`;
+  const response = await requestJson(url, withAuth(token));
+  const roles = Array.isArray(response?.data) ? response.data : [];
+  const match = roles.find((role) => role?.key === 'public') || roles.find((role) => role?.name?.toLowerCase() === 'public');
+  if (match?.id) {
+    return match.id;
+  }
+  throw new Error('Не удалось найти публичную роль в Directus.');
 }
 
-function isNetworkErrorCode(code) {
-  return [
-    'ENETUNREACH',
-    'EHOSTUNREACH',
-    'ECONNREFUSED',
-    'ECONNRESET',
-    'ECONNABORTED',
-    'ETIMEDOUT',
-    'ENETDOWN',
-    'EHOSTDOWN',
-    'EPIPE',
-    'EPROTO',
-    'UND_ERR_CONNECT_TIMEOUT',
-  ].includes(code);
+async function upsertPermission(token, roleId, collection, action, payload) {
+  const params = new URLSearchParams();
+  params.set('filter[role][_eq]', roleId);
+  params.set('filter[collection][_eq]', collection);
+  params.set('filter[action][_eq]', action);
+  const url = `${directusUrl}/permissions?${params.toString()}`;
+  const existingResponse = await requestJson(url, withAuth(token));
+  const existing = Array.isArray(existingResponse?.data) ? existingResponse.data[0] : undefined;
+  if (existing?.id) {
+    await requestJson(`${directusUrl}/permissions/${existing.id}`, withAuth(token, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    }));
+    return existing.id;
+  }
+  const created = await requestJson(`${directusUrl}/permissions`, withAuth(token, {
+    method: 'POST',
+    body: JSON.stringify(Object.assign({ role: roleId, collection, action }, payload)),
+  }));
+  return created?.data?.id;
 }
 
-async function pollDirectusHealth(baseUrl) {
-  const healthUrl = `${baseUrl}/server/health`;
-  console.log(`Polling ${healthUrl} for up to ${directusWaitTimeoutMs}ms (minimum interval ${directusWaitIntervalMs}ms).`);
-  const startTime = Date.now();
-  const deadline = startTime + directusWaitTimeoutMs;
-  let attempt = 0;
-  let lastError = null;
-
-  while (Date.now() <= deadline) {
-    attempt += 1;
-    let attemptError = null;
-    const timeoutMs = Math.max(1000, directusWaitIntervalMs);
-    try {
-      const fetchOptions = {
-        method: 'GET',
-        headers: { Accept: 'application/json' },
-      };
-      let controller;
-      let timeoutId;
-      if (typeof AbortController === 'function') {
-        controller = new AbortController();
-        timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-        fetchOptions.signal = controller.signal;
-      }
-      let response;
-      try {
-        response = await fetch(healthUrl, fetchOptions);
-      } finally {
-        if (timeoutId) {
-          clearTimeout(timeoutId);
-        }
-      }
-      if (response.ok) {
-        try {
-          const body = await response.json();
-          if (!body || body.status === 'ok') {
-            if (attempt > 1) {
-              const elapsedSeconds = ((Date.now() - startTime) / 1000).toFixed(1);
-              console.log(`Directus responded after ${attempt} attempts (${elapsedSeconds}s).`);
-            }
-            return;
-          }
-          attemptError = new Error(`Health endpoint reported status: ${JSON.stringify(body)}`);
-        } catch (error) {
-          if (attempt > 1) {
-            const elapsedSeconds = ((Date.now() - startTime) / 1000).toFixed(1);
-            console.log(`Directus responded after ${attempt} attempts (${elapsedSeconds}s).`);
-          }
-          return;
-        }
-      } else {
-        attemptError = new Error(`Unexpected status ${response.status}`);
-      }
-    } catch (error) {
-      if (error?.name === 'AbortError') {
-        attemptError = new Error(`Health check request timed out after ${timeoutMs}ms`, { cause: error });
-      } else {
-        attemptError = new Error(`Health check request failed: ${error.message || error}`, { cause: error });
-      }
-    }
-
-    if (attemptError) {
-      lastError = attemptError;
-      const remaining = deadline - Date.now();
-      const baseMessage = attemptError.message || String(attemptError);
-      const code = findErrorProperty(attemptError, 'code');
-      const hostname = findErrorProperty(attemptError, 'hostname');
-      const address = findErrorProperty(attemptError, 'address');
-      const port = findErrorProperty(attemptError, 'port');
-      const details = [baseMessage];
-      if (code && !baseMessage.includes(code)) {
-        attemptError.code = code;
-        details.push(`code=${code}`);
-      }
-      if (hostname && !baseMessage.includes(hostname)) {
-        attemptError.hostname = hostname;
-        details.push(`hostname=${hostname}`);
-      }
-      if (address && !baseMessage.includes(address)) {
-        attemptError.address = address;
-        details.push(`address=${address}`);
-      }
-      if (port && !baseMessage.includes(String(port))) {
-        attemptError.port = port;
-        details.push(`port=${port}`);
-      }
-      const reason = details.filter(Boolean).join(' ');
-      if (code && isDnsErrorCode(code)) {
-        console.log(`Directus URL ${baseUrl} is not reachable due to DNS resolution error: ${reason}.`);
-        attemptError.url = baseUrl;
-        attemptError.isDnsError = true;
-        throw attemptError;
-      }
-      if (code && isNetworkErrorCode(code)) {
-        console.log(`Directus URL ${baseUrl} is not reachable due to network error: ${reason}.`);
-        attemptError.url = baseUrl;
-        attemptError.isNetworkError = true;
-        throw attemptError;
-      }
-      if (remaining <= 0) {
-        console.log(`Directus not ready (attempt ${attempt}): ${reason}. No time left to retry.`);
-        break;
-      }
-      const delay = Math.min(directusWaitIntervalMs * Math.pow(1.5, attempt - 1), 10000);
-      const waitMs = Math.max(250, delay);
-      const waitSeconds = (waitMs / 1000).toFixed(1);
-      const remainingSeconds = (remaining / 1000).toFixed(1);
-      console.log(`Directus not ready (attempt ${attempt}): ${reason}. Retrying in ${waitSeconds}s (time left ${remainingSeconds}s).`);
-      await sleep(waitMs);
-      continue;
-    }
-
-    break;
+async function ensurePublicApiAccess(token) {
+  logStep('Ensuring public API permissions');
+  const roleId = await getPublicRoleId(token);
+  const collections = ['homepage', 'projects', 'procurements', 'documents', 'news_articles', 'contacts'];
+  const payload = { fields: '*', permissions: {}, validation: {} };
+  for (const collection of collections) {
+    await upsertPermission(token, roleId, collection, 'read', payload);
   }
-
-  const elapsedSeconds = ((Date.now() - startTime) / 1000).toFixed(1);
-  const message = `Directus did not become reachable within ${directusWaitTimeoutMs}ms (${elapsedSeconds}s) after ${attempt} attempts.`;
-  const error = lastError ? new Error(message, { cause: lastError }) : new Error(message);
-  error.url = baseUrl;
-  throw error;
-}
-
-async function waitForDirectusAvailability() {
-  if (!directusUrlCandidates.length) {
-    return;
-  }
-  logStep('Waiting for Directus to become reachable');
-  const errors = [];
-  for (let index = 0; index < directusUrlCandidates.length; index += 1) {
-    const candidate = directusUrlCandidates[index];
-    const ordinal = `${index + 1}/${directusUrlCandidates.length}`;
-    console.log(`\nChecking Directus URL candidate ${ordinal}: ${candidate}`);
-    try {
-      directusUrl = candidate;
-      await pollDirectusHealth(candidate);
-      console.log(`Directus is ready at ${directusUrl}.`);
-      return;
-    } catch (error) {
-      errors.push({ url: candidate, error });
-      const code = findErrorProperty(error, 'code');
-      if (index < directusUrlCandidates.length - 1) {
-        if (code && isDnsErrorCode(code)) {
-          console.log(`Falling back to the next candidate because DNS lookup failed for ${candidate}.`);
-          continue;
-        }
-        if (code && isNetworkErrorCode(code)) {
-          console.log(`Falling back to the next candidate because a network error (${code}) occurred for ${candidate}.`);
-          continue;
-        }
-        const message = error?.message || String(error);
-        console.log(`Attempt to reach Directus at ${candidate} failed (${message}). Trying the next candidate...`);
-        continue;
-      }
-    }
-  }
-
-  const tried = directusUrlCandidates.join(', ');
-  const message = `Directus did not become reachable via any configured URL. Tried: ${tried}`;
-  if (errors.length === 1) {
-    throw new Error(message, { cause: errors[0].error });
-  }
-  const aggregate = new AggregateError(
-    errors.map((entry) => {
-      if (entry && entry.error) {
-        entry.error.url = entry.url;
-      }
-      return entry.error || entry;
-    }),
-    message,
-  );
-  throw aggregate;
 }
 
 async function authenticate() {
@@ -942,16 +797,8 @@ async function main() {
       console.log('Запущен в режиме dry-run — запросы к Directus не выполняются.');
       token = 'dry-run';
     } else {
-      await waitForDirectusAvailability();
-      if (accessTokenOverride) {
-        logStep('Using Directus access token from CLI');
-        token = accessTokenOverride;
-      } else if (adminStaticToken) {
-        logStep('Using Directus static token from environment');
-        token = adminStaticToken;
-      } else {
-        token = await authenticate();
-      }
+      token = await authenticate();
+      await ensurePublicApiAccess(token);
     }
 
     const importedImages = await collectImages(token);
