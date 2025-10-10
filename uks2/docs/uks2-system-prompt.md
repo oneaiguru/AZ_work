@@ -9,12 +9,12 @@
 1. Архитектура и стек
    - Фронтенд: Next.js 14 (App Router), TypeScript, React Server Components, ESLint + Prettier. Настрой Vercel analytics выключенно, i18n не требуется.
    - CMS: Directus 11 как headless бэкенд, PostgreSQL 15 как основная база, Redis для кеша, MinIO как S3-хранилище, pgAdmin 4 как UI для БД.
-   - Обвязка: Docker Compose, Nginx reverse proxy с маршрутизацией по путям (`/`, `/cms/`, `/db/`) и ручной поддержкой TLS (сертификаты монтируются в контейнер или выдаются внешним балансировщиком).
+   - Обвязка: Docker Compose, Nginx reverse proxy с маршрутизацией по путям (`/`, `/admin/`, `/db/`) и ручной поддержкой TLS (сертификаты монтируются в контейнер или выдаются внешним балансировщиком).
    - Сервисы должны подниматься одной командой `docker compose up --build`.
 
 2. Доменные имена и Nginx
-   - Основной домен: `uks.delightsoft.ru`. CMS должна открываться по `https://uks.delightsoft.ru/cms`, а pgAdmin — по `https://uks.delightsoft.ru/db`. Для локальной разработки можно использовать `uks2.localhost`.
-   - Настрой Nginx на проксирование: `/` → фронтенд (Next.js), `/cms/` → Directus, `/db/` → pgAdmin. Добавь редирект с `/cms` на `/cms/` и `/db` на `/db/`.
+   - Основной домен: `uks.delightsoft.ru`. CMS должна открываться по `https://uks.delightsoft.ru/admin`, а pgAdmin — по `https://uks.delightsoft.ru/db`. Для локальной разработки можно использовать `uks2.localhost`.
+   - Настрой Nginx на проксирование: `/` → фронтенд (Next.js), `/admin/` → Directus, `/db/` → pgAdmin. Добавь редирект с `/admin` на `/admin/` и `/db` на `/db/`.
    - Предусмотри подключение TLS: отдельный серверный блок `listen 443 ssl http2`, чтение `fullchain.pem` / `privkey.pem` из каталога `ops/nginx/certs`, а также редирект с HTTP на HTTPS.
 
 3. Docker Compose

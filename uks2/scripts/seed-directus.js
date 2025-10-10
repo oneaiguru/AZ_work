@@ -27,6 +27,10 @@ for (let index = 0; index < args.length; index += 1) {
     flags.add('skip-images');
     continue;
   }
+  if (arg === '--debug') {
+    flags.add('debug');
+    continue;
+  }
   if (arg.startsWith('--data=')) {
     dataFile = path.resolve(process.cwd(), arg.slice('--data='.length));
     continue;
@@ -57,6 +61,7 @@ for (let index = 0; index < args.length; index += 1) {
 const dryRun = flags.has('dry-run');
 const skipImages = flags.has('skip-images');
 const truncateCollections = flags.has('truncate');
+const debug = flags.has('debug');
 
 const projectRoot = path.resolve(__dirname, '..');
 const envPath = path.join(projectRoot, '.env');
@@ -103,6 +108,74 @@ function logStep(message) {
   process.stdout.write(`\n==> ${message}\n`);
 }
 
+function logDebug(...args) {
+  if (debug) {
+    console.log('[debug]', ...args);
+  }
+}
+
+logDebug('Using Directus URL', directusUrl);
+
+async function fetchWithTimeout(url, options = {}, timeoutMs = 15000) {
+  if (options && options.signal) {
+    return fetch(url, options);
+  }
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, Object.assign({}, options, { signal: controller.signal }));
+  } catch (error) {
+    if (error?.name === 'AbortError') {
+      const timeoutError = new Error(`Request to ${url} timed out after ${timeoutMs}ms`);
+      timeoutError.name = 'TimeoutError';
+      throw timeoutError;
+    }
+    throw error;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function waitForDirectus() {
+  if (dryRun) {
+    return;
+  }
+  const attempts = Number.parseInt(process.env.SEED_DIRECTUS_MAX_ATTEMPTS || '12', 10);
+  const delay = Number.parseInt(process.env.SEED_DIRECTUS_RETRY_DELAY || '5000', 10);
+  const endpoints = [`${directusUrl}/server/health`, `${directusUrl}/server/ping`];
+  logStep('Waiting for Directus API to become available');
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    for (const url of endpoints) {
+      try {
+        const response = await fetchWithTimeout(url, { headers: { Accept: 'application/json' } }, 8000);
+        logDebug('Health check', url, '->', response.status);
+        if (response.ok) {
+          if (response.headers.get('content-type')?.includes('application/json')) {
+            const payload = await response.json();
+            const status = payload?.status || payload?.data?.status;
+            logDebug('Health payload', payload);
+            if (typeof status === 'string' && status.toLowerCase() !== 'ok') {
+              break;
+            }
+          }
+          return;
+        }
+      } catch (error) {
+        logDebug('Health check failed for', url, error.message);
+      }
+    }
+    if (attempt < attempts) {
+      logDebug(`Directus not ready yet (attempt ${attempt}/${attempts}) — waiting ${delay}ms before retry`);
+      await sleep(delay);
+    }
+  }
+  throw new Error('Directus API недоступен. Проверьте, что контейнер directus запущен и порт 8055 открыт.');
+}
+
 function withAuth(token, options = {}) {
   const headers = Object.assign({
     Authorization: `Bearer ${token}`,
@@ -115,7 +188,10 @@ function withAuth(token, options = {}) {
 }
 
 async function requestJson(url, options = {}) {
-  const response = await fetch(url, options);
+  const method = options.method || 'GET';
+  logDebug(`${method} ${url}`);
+  const response = await fetchWithTimeout(url, options, 15000);
+  logDebug(`${method} ${url} -> ${response.status}`);
   if (!response.ok) {
     let details = '';
     try {
@@ -124,13 +200,111 @@ async function requestJson(url, options = {}) {
     } catch (error) {
       details = await response.text();
     }
-    throw new Error(`Request to ${url} failed with status ${response.status}: ${details}`);
+    const error = new Error(`Request to ${url} failed with status ${response.status}: ${details}`);
+    error.status = response.status;
+    throw error;
   }
   const contentType = response.headers.get('content-type');
   if (!contentType || !contentType.includes('application/json')) {
     return {};
   }
   return response.json();
+}
+
+async function findPublicPolicyId(token) {
+  const params = new URLSearchParams();
+  params.set('filter[icon][_eq]', 'public');
+  params.append('fields[]', 'id');
+  params.append('fields[]', 'name');
+  params.set('limit', '-1');
+  const response = await requestJson(`${directusUrl}/policies?${params.toString()}`, withAuth(token));
+  const policies = Array.isArray(response?.data) ? response.data : [];
+  logDebug('Available policies', policies.map((policy) => ({ id: policy?.id, name: policy?.name })));
+  const match =
+    policies.find((policy) => typeof policy?.name === 'string' && policy.name.toLowerCase().includes('public')) || policies[0];
+  if (match?.id) {
+    return match.id;
+  }
+  throw new Error('Не удалось определить политику Directus для публичного доступа.');
+}
+
+async function attachPolicyToRole(token, roleId, policyId) {
+  logDebug('Attaching policy', policyId, 'to role', roleId);
+  await requestJson(`${directusUrl}/access`, withAuth(token, {
+    method: 'POST',
+    body: JSON.stringify({ role: roleId, policy: policyId, sort: 1 }),
+  }));
+}
+
+async function getPublicRoleContext(token) {
+  const params = new URLSearchParams();
+  params.set('limit', '-1');
+  params.append('fields[]', 'id');
+  params.append('fields[]', 'name');
+  params.append('fields[]', 'key');
+  const url = `${directusUrl}/roles?${params.toString()}`;
+  const response = await requestJson(url, withAuth(token));
+  const roles = Array.isArray(response?.data) ? response.data : [];
+  const match = roles.find((role) => role?.key === 'public') || roles.find((role) => role?.name?.toLowerCase() === 'public');
+  if (match?.id) {
+    logDebug('Found public role', { id: match.id, name: match.name, key: match.key });
+    const accessParams = new URLSearchParams();
+    accessParams.set('filter[role][_eq]', match.id);
+    accessParams.append('fields[]', 'id');
+    accessParams.append('fields[]', 'policy');
+    accessParams.set('limit', '1');
+    const accessUrl = `${directusUrl}/access?${accessParams.toString()}`;
+    const accessResponse = await requestJson(accessUrl, withAuth(token));
+    const attachment = Array.isArray(accessResponse?.data) ? accessResponse.data[0] : null;
+    let policyId = attachment?.policy;
+    if (!policyId) {
+      policyId = await findPublicPolicyId(token);
+      await attachPolicyToRole(token, match.id, policyId);
+    }
+    logDebug('Public role context', { roleId: match.id, policyId });
+    return { roleId: match.id, policyId };
+  }
+  throw new Error('Не удалось найти публичную роль в Directus.');
+}
+
+async function upsertPermission(token, policyId, collection, action, payload) {
+  const params = new URLSearchParams();
+  params.set('filter[policy][_eq]', policyId);
+  params.set('filter[collection][_eq]', collection);
+  params.set('filter[action][_eq]', action);
+  const url = `${directusUrl}/permissions?${params.toString()}`;
+  const existingResponse = await requestJson(url, withAuth(token));
+  const existing = Array.isArray(existingResponse?.data) ? existingResponse.data[0] : undefined;
+  if (existing?.id) {
+    logDebug('Updating existing permission', existing.id, 'for', collection, action);
+    await requestJson(`${directusUrl}/permissions/${existing.id}`, withAuth(token, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    }));
+    return { id: existing.id, created: false };
+  }
+  logDebug('Creating permission for', collection, action);
+  const created = await requestJson(`${directusUrl}/permissions`, withAuth(token, {
+    method: 'POST',
+    body: JSON.stringify(Object.assign({ policy: policyId, collection, action }, payload)),
+  }));
+  return { id: created?.data?.id, created: true };
+}
+
+async function ensurePublicApiAccess(token) {
+  logStep('Ensuring public API permissions');
+  const { policyId } = await getPublicRoleContext(token);
+  const collections = ['homepage', 'projects', 'procurements', 'documents', 'news_articles', 'contacts'];
+  const payload = {
+    fields: ['*'],
+    permissions: null,
+    validation: null,
+    presets: null,
+  };
+  for (const collection of collections) {
+    const result = await upsertPermission(token, policyId, collection, 'read', payload);
+    logDebug('Permission configured', { collection, action: 'read', id: result?.id, created: result?.created });
+  }
 }
 
 async function authenticate() {
@@ -140,11 +314,13 @@ async function authenticate() {
     email: adminEmail,
     password: adminPassword,
   };
-  const response = await fetch(url, {
+  logDebug('POST', url, '(auth)');
+  const response = await fetchWithTimeout(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
     body: JSON.stringify(payload),
-  });
+  }, 15000);
+  logDebug('POST', url, '(auth) ->', response.status);
   if (!response.ok) {
     const text = await response.text();
     throw new Error(`Cannot authenticate: ${response.status} ${text}`);
@@ -262,11 +438,12 @@ function parseImageSources(data) {
 }
 
 async function scrapeImagesFrom(url) {
+  logDebug('Scraping images from', url);
   const headers = {
     'User-Agent': 'uks2-seeder/1.0 (+https://uks.delightsoft.ru)',
     Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
   };
-  const response = await fetch(url, { headers });
+  const response = await fetchWithTimeout(url, { headers }, 12000);
   if (!response.ok) {
     throw new Error(`Failed to download ${url}: ${response.status}`);
   }
@@ -319,6 +496,12 @@ async function importRemoteFile(token, image) {
     return response?.data?.id ?? null;
   } catch (error) {
     console.warn('Failed to import image', image.url, error.message);
+    if (error?.name === 'TimeoutError') {
+      console.warn('Загрузка прервана по таймауту — при необходимости запустите сидер с флагом --skip-images.');
+    }
+    if (debug && error?.stack) {
+      console.warn(error.stack);
+    }
     return null;
   }
 }
@@ -339,6 +522,7 @@ async function collectImages(token) {
     if (collected.size >= maxImages) {
       break;
     }
+    logDebug('Scraping source', source);
     try {
       const urls = await scrapeImagesFrom(source);
       for (const url of urls) {
@@ -352,6 +536,12 @@ async function collectImages(token) {
       }
     } catch (error) {
       console.warn('Unable to scrape images from', source, error.message);
+      if (error?.name === 'TimeoutError') {
+        console.warn('Возможны сетевые ограничения — можно пропустить импорт изображений флагом --skip-images.');
+      }
+      if (debug && error?.stack) {
+        console.warn(error.stack);
+      }
     }
   }
 
@@ -361,6 +551,7 @@ async function collectImages(token) {
       break;
     }
     if (!collected.has(entry.url)) {
+      logDebug('Adding manual image', entry.url);
       collected.set(entry.url, null);
     }
   }
@@ -370,6 +561,7 @@ async function collectImages(token) {
     if (collected.get(url)) {
       continue;
     }
+    logDebug('Importing image', url);
     const image = manual.find((item) => item.url === url) || { url };
     const fileId = await importRemoteFile(token, image);
     collected.set(url, fileId);
@@ -439,7 +631,9 @@ async function main() {
       console.log('Запущен в режиме dry-run — запросы к Directus не выполняются.');
       token = 'dry-run';
     } else {
+      await waitForDirectus();
       token = await authenticate();
+      await ensurePublicApiAccess(token);
     }
 
     const importedImages = await collectImages(token);
@@ -465,6 +659,9 @@ async function main() {
     logStep('Seeding completed successfully');
   } catch (error) {
     console.error('\nSeeding failed:', error.message);
+    if (debug && error?.stack) {
+      console.error(error.stack);
+    }
     process.exitCode = 1;
   }
 }
