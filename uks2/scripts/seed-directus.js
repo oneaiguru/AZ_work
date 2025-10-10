@@ -12,6 +12,8 @@ const args = process.argv.slice(2);
 const flags = new Set();
 let dataFile = path.join(__dirname, 'seed-data.json');
 let maxImages = 12;
+let waitTimeoutOverride;
+let waitIntervalOverride;
 
 for (let index = 0; index < args.length; index += 1) {
   const arg = args[index];
@@ -47,6 +49,66 @@ for (let index = 0; index < args.length; index += 1) {
     const value = Number.parseInt(args[index + 1], 10);
     if (Number.isFinite(value) && value > 0) {
       maxImages = value;
+    }
+    index += 1;
+    continue;
+  }
+  if (arg.startsWith('--wait-timeout-ms=')) {
+    const value = parseIntegerOption(arg.slice('--wait-timeout-ms='.length));
+    if (value !== null) {
+      waitTimeoutOverride = value;
+    }
+    continue;
+  }
+  if (arg === '--wait-timeout-ms' && args[index + 1]) {
+    const value = parseIntegerOption(args[index + 1]);
+    if (value !== null) {
+      waitTimeoutOverride = value;
+    }
+    index += 1;
+    continue;
+  }
+  if (arg.startsWith('--wait-timeout=')) {
+    const value = parseIntegerOption(arg.slice('--wait-timeout='.length), 1000);
+    if (value !== null) {
+      waitTimeoutOverride = value;
+    }
+    continue;
+  }
+  if (arg === '--wait-timeout' && args[index + 1]) {
+    const value = parseIntegerOption(args[index + 1], 1000);
+    if (value !== null) {
+      waitTimeoutOverride = value;
+    }
+    index += 1;
+    continue;
+  }
+  if (arg.startsWith('--wait-interval-ms=')) {
+    const value = parseIntegerOption(arg.slice('--wait-interval-ms='.length));
+    if (value !== null) {
+      waitIntervalOverride = value;
+    }
+    continue;
+  }
+  if (arg === '--wait-interval-ms' && args[index + 1]) {
+    const value = parseIntegerOption(args[index + 1]);
+    if (value !== null) {
+      waitIntervalOverride = value;
+    }
+    index += 1;
+    continue;
+  }
+  if (arg.startsWith('--wait-interval=')) {
+    const value = parseIntegerOption(arg.slice('--wait-interval='.length), 1000);
+    if (value !== null) {
+      waitIntervalOverride = value;
+    }
+    continue;
+  }
+  if (arg === '--wait-interval' && args[index + 1]) {
+    const value = parseIntegerOption(args[index + 1], 1000);
+    if (value !== null) {
+      waitIntervalOverride = value;
     }
     index += 1;
     continue;
@@ -88,9 +150,20 @@ function parsePositiveInteger(value, fallback) {
   return parsed;
 }
 
+function parseIntegerOption(value, multiplier = 1) {
+  if (value === undefined || value === null || value === '') {
+    return null;
+  }
+  const parsed = Number.parseInt(String(value), 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return null;
+  }
+  return parsed * multiplier;
+}
+
 const directusUrl = (process.env.DIRECTUS_INTERNAL_URL || process.env.DIRECTUS_PUBLIC_URL || 'http://localhost:8055').replace(/\/$/, '');
-const directusWaitTimeoutMs = parsePositiveInteger(process.env.DIRECTUS_WAIT_TIMEOUT_MS, 60000);
-const directusWaitIntervalMs = parsePositiveInteger(process.env.DIRECTUS_WAIT_INTERVAL_MS, 2000);
+const directusWaitTimeoutMs = parsePositiveInteger(waitTimeoutOverride ?? process.env.DIRECTUS_WAIT_TIMEOUT_MS, 300000);
+const directusWaitIntervalMs = parsePositiveInteger(waitIntervalOverride ?? process.env.DIRECTUS_WAIT_INTERVAL_MS, 2000);
 const adminEmail = process.env.DIRECTUS_ADMIN_EMAIL;
 const adminPassword = process.env.DIRECTUS_ADMIN_PASSWORD;
 
@@ -210,6 +283,7 @@ async function waitForDirectusAvailability() {
   }
   logStep('Waiting for Directus to become reachable');
   const healthUrl = `${directusUrl}/server/health`;
+  console.log(`Polling ${healthUrl} for up to ${directusWaitTimeoutMs}ms (minimum interval ${directusWaitIntervalMs}ms).`);
   const startTime = Date.now();
   const deadline = startTime + directusWaitTimeoutMs;
   let attempt = 0;
@@ -217,6 +291,8 @@ async function waitForDirectusAvailability() {
 
   while (Date.now() <= deadline) {
     attempt += 1;
+    let attemptError = null;
+    const timeoutMs = Math.max(1000, directusWaitIntervalMs);
     try {
       const fetchOptions = {
         method: 'GET',
@@ -224,7 +300,6 @@ async function waitForDirectusAvailability() {
       };
       let controller;
       let timeoutId;
-      const timeoutMs = Math.max(1000, directusWaitIntervalMs);
       if (typeof AbortController === 'function') {
         controller = new AbortController();
         timeoutId = setTimeout(() => controller.abort(), timeoutMs);
@@ -248,7 +323,7 @@ async function waitForDirectusAvailability() {
             }
             return;
           }
-          lastError = new Error(`Health endpoint reported status: ${JSON.stringify(body)}`);
+          attemptError = new Error(`Health endpoint reported status: ${JSON.stringify(body)}`);
         } catch (error) {
           if (attempt > 1) {
             const elapsedSeconds = ((Date.now() - startTime) / 1000).toFixed(1);
@@ -257,18 +332,44 @@ async function waitForDirectusAvailability() {
           return;
         }
       } else {
-        lastError = new Error(`Unexpected status ${response.status}`);
+        attemptError = new Error(`Unexpected status ${response.status}`);
       }
     } catch (error) {
-      lastError = error;
+      if (error?.name === 'AbortError') {
+        attemptError = new Error(`Health check request timed out after ${timeoutMs}ms`, { cause: error });
+      } else {
+        attemptError = new Error(`Health check request failed: ${error.message || error}`, { cause: error });
+      }
     }
 
-    const remaining = deadline - Date.now();
-    if (remaining <= 0) {
-      break;
+    if (attemptError) {
+      lastError = attemptError;
+      const remaining = deadline - Date.now();
+      const baseMessage = attemptError.message || String(attemptError);
+      const code = attemptError.code || attemptError.cause?.code;
+      const hostname = attemptError.hostname || attemptError.cause?.hostname;
+      const details = [baseMessage];
+      if (code && !baseMessage.includes(code)) {
+        details.push(`code=${code}`);
+      }
+      if (hostname && !baseMessage.includes(hostname)) {
+        details.push(`hostname=${hostname}`);
+      }
+      const reason = details.filter(Boolean).join(' ');
+      if (remaining <= 0) {
+        console.log(`Directus not ready (attempt ${attempt}): ${reason}. No time left to retry.`);
+        break;
+      }
+      const delay = Math.min(directusWaitIntervalMs * Math.pow(1.5, attempt - 1), 10000);
+      const waitMs = Math.max(250, delay);
+      const waitSeconds = (waitMs / 1000).toFixed(1);
+      const remainingSeconds = (remaining / 1000).toFixed(1);
+      console.log(`Directus not ready (attempt ${attempt}): ${reason}. Retrying in ${waitSeconds}s (time left ${remainingSeconds}s).`);
+      await sleep(waitMs);
+      continue;
     }
-    const delay = Math.min(directusWaitIntervalMs * Math.pow(1.5, attempt - 1), 10000);
-    await sleep(Math.max(250, delay));
+
+    break;
   }
 
   const elapsedSeconds = ((Date.now() - startTime) / 1000).toFixed(1);
