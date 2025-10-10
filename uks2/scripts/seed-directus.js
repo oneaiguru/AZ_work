@@ -133,6 +133,54 @@ async function requestJson(url, options = {}) {
   return response.json();
 }
 
+async function getPublicRoleId(token) {
+  const params = new URLSearchParams();
+  params.set('limit', '-1');
+  params.append('fields[]', 'id');
+  params.append('fields[]', 'name');
+  params.append('fields[]', 'key');
+  const url = `${directusUrl}/roles?${params.toString()}`;
+  const response = await requestJson(url, withAuth(token));
+  const roles = Array.isArray(response?.data) ? response.data : [];
+  const match = roles.find((role) => role?.key === 'public') || roles.find((role) => role?.name?.toLowerCase() === 'public');
+  if (match?.id) {
+    return match.id;
+  }
+  throw new Error('Не удалось найти публичную роль в Directus.');
+}
+
+async function upsertPermission(token, roleId, collection, action, payload) {
+  const params = new URLSearchParams();
+  params.set('filter[role][_eq]', roleId);
+  params.set('filter[collection][_eq]', collection);
+  params.set('filter[action][_eq]', action);
+  const url = `${directusUrl}/permissions?${params.toString()}`;
+  const existingResponse = await requestJson(url, withAuth(token));
+  const existing = Array.isArray(existingResponse?.data) ? existingResponse.data[0] : undefined;
+  if (existing?.id) {
+    await requestJson(`${directusUrl}/permissions/${existing.id}`, withAuth(token, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    }));
+    return existing.id;
+  }
+  const created = await requestJson(`${directusUrl}/permissions`, withAuth(token, {
+    method: 'POST',
+    body: JSON.stringify(Object.assign({ role: roleId, collection, action }, payload)),
+  }));
+  return created?.data?.id;
+}
+
+async function ensurePublicApiAccess(token) {
+  logStep('Ensuring public API permissions');
+  const roleId = await getPublicRoleId(token);
+  const collections = ['homepage', 'projects', 'procurements', 'documents', 'news_articles', 'contacts'];
+  const payload = { fields: '*', permissions: {}, validation: {} };
+  for (const collection of collections) {
+    await upsertPermission(token, roleId, collection, 'read', payload);
+  }
+}
+
 async function authenticate() {
   logStep('Authenticating with Directus');
   const url = `${directusUrl}/auth/login`;
@@ -440,6 +488,7 @@ async function main() {
       token = 'dry-run';
     } else {
       token = await authenticate();
+      await ensurePublicApiAccess(token);
     }
 
     const importedImages = await collectImages(token);
