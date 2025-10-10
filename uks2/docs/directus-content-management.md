@@ -120,7 +120,10 @@
    node scripts/seed-directus.js --truncate
    ```
    Ключ `--truncate` очищает коллекции `projects`, `procurements`, `documents`, `news_articles` перед импортом, чтобы избежать дублей. Без ключа записи будут обновлены по `slug`/`title`.
-   Если для запуска используется статический токен API, пропишите его в `.env` (`DIRECTUS_ADMIN_STATIC_TOKEN`) или передайте ключом `--token <value>`.
+   Если Node.js не установлен на хосте, тот же скрипт можно запустить из контейнера фронтенда:
+   ```bash
+   docker compose run --rm frontend node scripts/seed-directus.js --truncate
+   ```
 3. Дополнительные параметры скрипта:
    - `--skip-images` — не скачивать изображения (актуально в окружениях без доступа к `uks.irkutsk.ru`);
    - `--dry-run` — показать операции без отправки запросов в Directus;
@@ -137,8 +140,6 @@
 | Кнопки на главной ведут не туда | Поля `hero_primary_href` и `hero_secondary_href` | Указывайте относительные пути (`/zakupki`). После правки обновите страницу |
 | Изображение не загружается | Лог в Directus, права доступа к бакету MinIO | Проверьте переменные `MINIO_*` и убедитесь, что файл не превышает лимит |
 | Ошибка авторизации Directus | Лог `directus-1`, корректность пароля БД | Используйте `node scripts/generate-env.js --force --rotate-db-password` и инструкции из руководства по восстановлению |
-| API отвечает 403 при запуске сидера | Проверить роль токена/аккаунта на доступ к коллекциям | Создайте статический токен с ролью `admin` и передайте через `DIRECTUS_ADMIN_STATIC_TOKEN`, `--token` или `--token-file` |
-| Health-check Directus возвращает `EACCES` | Логи `directus-1`, статус `directus-storage-permissions` | Запустите `docker compose up directus-storage-permissions` и перезапустите Directus, чтобы перепризначить владельца каталога `directus/uploads` |
-| Нужно заполнить базу заново | Повторить `node scripts/seed-directus.js --truncate` | Перед перезапуском убедитесь, что Directus доступен и `.env` актуален |
+| Нужно заполнить базу заново | Повторить `node scripts/seed-directus.js --truncate` или `docker compose run --rm frontend node scripts/seed-directus.js --truncate` | Перед перезапуском убедитесь, что Directus доступен и `.env` актуален |
 
 Перед публикацией просматривайте страницы сайта на десктопе и мобильных устройствах, проверяйте корректность ссылок, метаданных файлов и наличие alt-текста у изображений.
