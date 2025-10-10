@@ -111,7 +111,7 @@
 
 ## 9. Начальное заполнение базы
 
-Для быстрого старта используется скрипт `uks2/scripts/seed-directus.js` и файл данных `uks2/scripts/seed-data.json`.
+Для быстрого старта используется скрипт `uks2/scripts/seed-directus.js` и файл данных `uks2/scripts/seed-data.json`. Подробное руководство по импорту доступно в документе [«Импорт стартового контента в Directus»](directus-seed-import.md).
 
 1. Настройте `.env` (`node scripts/generate-env.js --force`) и запустите инфраструктуру (`docker compose up -d`).
 2. Выполните начальное заполнение:

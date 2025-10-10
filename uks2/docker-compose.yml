@@ -39,11 +39,11 @@ services:
       PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD}
       PGADMIN_CONFIG_SERVER_MODE: "False"
       PGADMIN_CONFIG_PROXY_X_FOR_HEADERS: "True"
-      PGADMIN_CONFIG_SCRIPT_NAME: "'${PGADMIN_BASE_PATH}'"
-      PGADMIN_CONFIG_APPLICATION_ROOT: "'${PGADMIN_BASE_PATH}'"
-      PGADMIN_CONFIG_SESSION_COOKIE_PATH: "'${PGADMIN_BASE_PATH}'"
-      PGADMIN_CONFIG_CSRF_COOKIE_PATH: "'${PGADMIN_BASE_PATH}'"
-      PGADMIN_CONFIG_SECURITY_COOKIE_PATH: "'${PGADMIN_BASE_PATH}'"
+      PGADMIN_CONFIG_SCRIPT_NAME: "\"${PGADMIN_BASE_PATH}\""
+      PGADMIN_CONFIG_APPLICATION_ROOT: "\"${PGADMIN_BASE_PATH}\""
+      PGADMIN_CONFIG_SESSION_COOKIE_PATH: "\"${PGADMIN_BASE_PATH}\""
+      PGADMIN_CONFIG_CSRF_COOKIE_PATH: "\"${PGADMIN_BASE_PATH}\""
+      PGADMIN_CONFIG_SECURITY_COOKIE_PATH: "\"${PGADMIN_BASE_PATH}\""
     depends_on:
       postgres:
         condition: service_healthy
@@ -114,10 +114,24 @@ services:
         condition: service_started
       minio:
         condition: service_started
+      directus-storage-permissions:
+        condition: service_completed_successfully
     volumes:
       - ./directus/uploads:/directus/uploads
       - ./directus/extensions:/directus/extensions
       - ./directus/snapshot.yaml:/directus/snapshot.yaml:ro
+
+  directus-storage-permissions:
+    image: busybox:1.37.0
+    restart: "no"
+    command:
+      - /bin/sh
+      - -c
+      - >-
+        mkdir -p /directus/uploads &&
+        chown -R 1000:1000 /directus/uploads
+    volumes:
+      - ./directus/uploads:/directus/uploads
 
   frontend:
     build:
