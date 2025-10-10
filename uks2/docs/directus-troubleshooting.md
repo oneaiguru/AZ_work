@@ -71,7 +71,7 @@ docker compose up -d
 docker compose logs -f directus
 ```
 
-Если логов об ошибке нет, можно открыть админку по адресу `https://uks.delightsoft.ru/cms` (или локальный путь `http://uks2.localhost/cms`).
+Если логов об ошибке нет, можно открыть админку по адресу `https://uks.delightsoft.ru/admin` (или локальный путь `http://uks2.localhost/admin`).
 
 ## Что делать, если пароль неизвестен
 
