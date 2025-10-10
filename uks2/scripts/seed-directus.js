@@ -357,6 +357,7 @@ function withAuth(token, options = {}) {
     }
   }
 
+  config.directusTokenTransport = directusTokenTransport;
   return config;
 }
 
@@ -394,9 +395,15 @@ function maskAccessToken(url) {
 }
 
 async function requestJson(url, options = {}) {
-  const { directusAccessToken, ...fetchOptions } = options;
-  const requestUrl = directusAccessToken ? appendAccessToken(url, directusAccessToken) : url;
-  const safeUrl = directusAccessToken ? maskAccessToken(requestUrl) : requestUrl;
+  const { directusAccessToken, directusTokenTransport, ...fetchOptions } = options;
+  const headers = fetchOptions.headers || {};
+  const hasAuthHeader = Boolean(headers.Authorization || headers.authorization);
+  const shouldAppendToken = Boolean(
+    directusAccessToken &&
+      ((directusTokenTransport === 'query' && !hasAuthHeader) || directusTokenTransport === 'both')
+  );
+  const requestUrl = shouldAppendToken ? appendAccessToken(url, directusAccessToken) : url;
+  const safeUrl = shouldAppendToken ? maskAccessToken(requestUrl) : requestUrl;
   let response;
   try {
     response = await fetch(requestUrl, fetchOptions);
