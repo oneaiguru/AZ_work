@@ -1,10 +1,7 @@
 {
   "imageSources": [
-    "https://uks.irkutsk.ru/",
-    "https://uks.irkutsk.ru/projects/",
-    "https://uks.irkutsk.ru/press-tsentr/",
-    "https://uks.irkutsk.ru/zakupki/",
-    "https://uks.irkutsk.ru/wp-content/uploads/"
+    "https://uks.irkutsk.ru/wp-content/uploads/",
+    "https://uks.irkutsk.ru/wp-content/uploads/2025/09/"
   ],
   "manualImages": [
     {
@@ -41,6 +38,21 @@
       "url": "https://uks.irkutsk.ru/wp-content/uploads/2025/09/uks_team_office.jpg",
       "title": "Команда УКС",
       "description": "Рабочие процессы в офисе УКС"
+    },
+    {
+      "url": "https://uks.irkutsk.ru/wp-content/uploads/2025/09/uks_news_school_frame.jpg",
+      "title": "Монтаж школы",
+      "description": "Репортаж с площадки школы на Академической"
+    },
+    {
+      "url": "https://uks.irkutsk.ru/wp-content/uploads/2025/09/uks_news_quarter_sign.jpg",
+      "title": "Подписание соглашения",
+      "description": "Согласование развития квартала \"Возрождение\""
+    },
+    {
+      "url": "https://uks.irkutsk.ru/wp-content/uploads/2025/09/uks_news_embankment_start.jpg",
+      "title": "Старт благоустройства набережной",
+      "description": "Начало работ на набережной Ангары"
     }
   ],
   "homepage": {
