@@ -445,6 +445,24 @@ async function getPublicRoleContext(token) {
   }
   const triedEndpoints = [];
   if (!roleId) {
+    const url = `${directusUrl}/server/info`;
+    triedEndpoints.push(url);
+    try {
+      const info = await requestJson(url, withAuth(token));
+      const projectRoleId = info?.data?.project?.public_role;
+      if (typeof projectRoleId === 'string' && projectRoleId) {
+        roleId = projectRoleId;
+        logDebug('Found public role via /server/info', { roleId });
+      }
+    } catch (error) {
+      if (error?.status === 403) {
+        logDebug('Access to /server/info denied, continuing with other strategies');
+      } else if (error?.status !== 404) {
+        throw error;
+      }
+    }
+  }
+  if (!roleId) {
     const params = new URLSearchParams();
     params.set('fields', 'id,name');
     params.set('filter[name][_icontains]', 'public');
