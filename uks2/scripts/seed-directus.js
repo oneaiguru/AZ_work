@@ -214,6 +214,8 @@ if (!directusCandidates.length) {
   directusCandidates.push('http://localhost:8055');
 }
 
+const DEFAULT_DIRECTUS_PUBLIC_ROLE_ID = '00000000-0000-0000-0000-000000000001';
+
 const directusUrl = directusCandidates[0];
 const adminEmail = process.env.DIRECTUS_ADMIN_EMAIL;
 const adminPassword = process.env.DIRECTUS_ADMIN_PASSWORD;
@@ -526,6 +528,11 @@ async function getPublicRoleContext(token) {
       }
       logDebug('Unable to inspect access attachments due to permissions');
     }
+  }
+  if (!roleId && DEFAULT_DIRECTUS_PUBLIC_ROLE_ID) {
+    roleId = DEFAULT_DIRECTUS_PUBLIC_ROLE_ID;
+    triedEndpoints.push(`default:${DEFAULT_DIRECTUS_PUBLIC_ROLE_ID}`);
+    logDebug('Falling back to default Directus public role id', roleId);
   }
   if (!roleId) {
     throw new Error(
