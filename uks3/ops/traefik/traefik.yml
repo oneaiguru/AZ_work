@@ -1,0 +1,44 @@
+log:
+  level: INFO
+accessLog: {}
+
+entryPoints:
+  web:
+    address: ':80'
+    http:
+      redirections:
+        entryPoint:
+          to: websecure
+          scheme: https
+  websecure:
+    address: ':443'
+    http:
+      tls:
+        certResolver: le
+        domains:
+          - main: ${TRAEFIK_PUBLIC_DOMAIN}
+            sans:
+              - ${TRAEFIK_CMS_DOMAIN}
+              - ${TRAEFIK_DB_DOMAIN}
+  dashboard:
+    address: ':8080'
+
+providers:
+  docker:
+    endpoint: 'unix:///var/run/docker.sock'
+    exposedByDefault: false
+
+certificatesResolvers:
+  le:
+    acme:
+      email: ${TRAEFIK_EMAIL}
+      storage: /etc/traefik/acme/acme.json
+      httpChallenge:
+        entryPoint: web
+
+api:
+  dashboard: true
+  insecure: false
+
+serversTransport:
+  insecureSkipVerify: true
