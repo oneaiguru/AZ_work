@@ -161,7 +161,27 @@ function parseIntegerOption(value, multiplier = 1) {
   return parsed * multiplier;
 }
 
-const directusUrl = (process.env.DIRECTUS_INTERNAL_URL || process.env.DIRECTUS_PUBLIC_URL || 'http://localhost:8055').replace(/\/$/, '');
+function normalizeUrl(value) {
+  if (value === undefined || value === null) {
+    return null;
+  }
+  const trimmed = String(value).trim();
+  if (!trimmed) {
+    return null;
+  }
+  return trimmed.replace(/\/+$/, '');
+}
+
+const directusUrlCandidates = [
+  process.env.DIRECTUS_INTERNAL_URL,
+  process.env.DIRECTUS_PUBLIC_URL,
+  'http://localhost:8055',
+]
+  .map(normalizeUrl)
+  .filter(Boolean)
+  .filter((url, index, self) => self.indexOf(url) === index);
+
+let directusUrl = directusUrlCandidates[0] || 'http://localhost:8055';
 const directusWaitTimeoutMs = parsePositiveInteger(waitTimeoutOverride ?? process.env.DIRECTUS_WAIT_TIMEOUT_MS, 300000);
 const directusWaitIntervalMs = parsePositiveInteger(waitIntervalOverride ?? process.env.DIRECTUS_WAIT_INTERVAL_MS, 2000);
 const adminEmail = process.env.DIRECTUS_ADMIN_EMAIL;
@@ -277,12 +297,12 @@ async function requestJson(url, options = {}) {
   return response.json();
 }
 
-async function waitForDirectusAvailability() {
-  if (!directusUrl) {
-    return;
-  }
-  logStep('Waiting for Directus to become reachable');
-  const healthUrl = `${directusUrl}/server/health`;
+function isDnsErrorCode(code) {
+  return ['EAI_AGAIN', 'ENOTFOUND', 'EAI_FAIL', 'EAI_NODATA', 'EAI_NONAME'].includes(code);
+}
+
+async function pollDirectusHealth(baseUrl) {
+  const healthUrl = `${baseUrl}/server/health`;
   console.log(`Polling ${healthUrl} for up to ${directusWaitTimeoutMs}ms (minimum interval ${directusWaitIntervalMs}ms).`);
   const startTime = Date.now();
   const deadline = startTime + directusWaitTimeoutMs;
@@ -350,12 +370,20 @@ async function waitForDirectusAvailability() {
       const hostname = attemptError.hostname || attemptError.cause?.hostname;
       const details = [baseMessage];
       if (code && !baseMessage.includes(code)) {
+        attemptError.code = code;
         details.push(`code=${code}`);
       }
       if (hostname && !baseMessage.includes(hostname)) {
+        attemptError.hostname = hostname;
         details.push(`hostname=${hostname}`);
       }
       const reason = details.filter(Boolean).join(' ');
+      if (code && isDnsErrorCode(code)) {
+        console.log(`Directus URL ${baseUrl} is not reachable due to DNS resolution error: ${reason}.`);
+        attemptError.url = baseUrl;
+        attemptError.isDnsError = true;
+        throw attemptError;
+      }
       if (remaining <= 0) {
         console.log(`Directus not ready (attempt ${attempt}): ${reason}. No time left to retry.`);
         break;
@@ -374,10 +402,54 @@ async function waitForDirectusAvailability() {
 
   const elapsedSeconds = ((Date.now() - startTime) / 1000).toFixed(1);
   const message = `Directus did not become reachable within ${directusWaitTimeoutMs}ms (${elapsedSeconds}s) after ${attempt} attempts.`;
-  if (lastError) {
-    throw new Error(message, { cause: lastError });
+  const error = lastError ? new Error(message, { cause: lastError }) : new Error(message);
+  error.url = baseUrl;
+  throw error;
+}
+
+async function waitForDirectusAvailability() {
+  if (!directusUrlCandidates.length) {
+    return;
   }
-  throw new Error(message);
+  logStep('Waiting for Directus to become reachable');
+  const errors = [];
+  for (let index = 0; index < directusUrlCandidates.length; index += 1) {
+    const candidate = directusUrlCandidates[index];
+    const ordinal = `${index + 1}/${directusUrlCandidates.length}`;
+    console.log(`\nChecking Directus URL candidate ${ordinal}: ${candidate}`);
+    try {
+      directusUrl = candidate;
+      await pollDirectusHealth(candidate);
+      console.log(`Directus is ready at ${directusUrl}.`);
+      return;
+    } catch (error) {
+      errors.push({ url: candidate, error });
+      const code = error.code || error.cause?.code;
+      if (isDnsErrorCode(code) && index < directusUrlCandidates.length - 1) {
+        console.log(`Falling back to the next candidate because DNS lookup failed for ${candidate}.`);
+        continue;
+      }
+      if (index < directusUrlCandidates.length - 1) {
+        console.log(`Attempt to reach Directus at ${candidate} failed. Trying the next candidate...`);
+      }
+    }
+  }
+
+  const tried = directusUrlCandidates.join(', ');
+  const message = `Directus did not become reachable via any configured URL. Tried: ${tried}`;
+  if (errors.length === 1) {
+    throw new Error(message, { cause: errors[0].error });
+  }
+  const aggregate = new AggregateError(
+    errors.map((entry) => {
+      if (entry && entry.error) {
+        entry.error.url = entry.url;
+      }
+      return entry.error || entry;
+    }),
+    message,
+  );
+  throw aggregate;
 }
 
 async function authenticate() {
