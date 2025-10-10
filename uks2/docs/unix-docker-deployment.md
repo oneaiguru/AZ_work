@@ -69,11 +69,11 @@ cd AZ_work/uks2
    - `DIRECTUS_PUBLIC_URL=https://uks.delightsoft.ru/cms`
    - `DIRECTUS_SEED_URL=https://uks.delightsoft.ru/cms`
    - `DIRECTUS_COOKIE_DOMAIN=.uks.delightsoft.ru`
-   - `DIRECTUS_REFRESH_COOKIE_PATH=/cms`
+   - `DIRECTUS_REFRESH_COOKIE_PATH=/admin`
    - `PGADMIN_BASE_PATH=/db`
    - `CMS_INTERNAL_URL=http://directus:8055`
 
-   Для локальной среды можно использовать `http://uks2.localhost`, `http://uks2.localhost/cms`, `DIRECTUS_COOKIE_DOMAIN=` (пустое значение) и `PGADMIN_BASE_PATH=/db`. Если вы обслуживаете сайт по HTTP, установите `DIRECTUS_REFRESH_COOKIE_SECURE=false`, чтобы Directus устанавливал cookie без флага Secure.
+   Для локальной среды можно использовать `http://uks2.localhost`, `http://uks2.localhost/admin`, `DIRECTUS_COOKIE_DOMAIN=` (пустое значение) и `PGADMIN_BASE_PATH=/db`. Если вы обслуживаете сайт по HTTP, установите `DIRECTUS_REFRESH_COOKIE_SECURE=false`, чтобы Directus устанавливал cookie без флага Secure.
 
 3. При необходимости скорректируйте SMTP, MinIO, Redis и учётные данные админов (`DIRECTUS_ADMIN_EMAIL`, `PGADMIN_DEFAULT_EMAIL` и т. д.).
 
@@ -126,7 +126,7 @@ docker compose logs -f directus
 
 ## 6. Первичная настройка Directus
 
-1. Зайдите в админку `https://uks.delightsoft.ru/cms/admin` и войдите с данными из `.env`.
+1. Зайдите в админку `https://uks.delightsoft.ru/admin` и войдите с данными из `.env`.
 2. Проверьте раздел **Settings → Storage** и привяжите бакеты MinIO (публичный и приватный).
 3. Включите запланированные задачи (flows) или интеграции, если они нужны.
 4. Создайте пользователей-редакторов и назначьте им готовые роли из снапшота.
@@ -183,4 +183,4 @@ sudo tar czf minio-data-$(date +%F).tar.gz -C /var/lib/docker/volumes/ $(docker 
 - **Нет доступа к MinIO** — проверьте, что бакеты созданы и креденшелы из `.env` совпадают.
 - **MinIO пишет `has incomplete body` по файлам `.usage.json` / `.bloomcycle.bin`** — после некорректной остановки могут повредиться временные метаданные. При следующем запуске контейнер выполнит `ops/minio/start-minio.sh` и удалит эти файлы, чтобы MinIO пересоздал их. Если сообщение остаётся, остановите стек и удалите локальный том `docker volume rm uks2_minio_data`.
 
-После выполнения шагов сайт будет обслуживаться Nginx, а CMS и pgAdmin будут доступны по вложенным путям `/cms` и `/db`.
+После выполнения шагов сайт будет обслуживаться Nginx, а CMS и pgAdmin будут доступны по вложенным путям `/admin` и `/db`.
