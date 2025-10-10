@@ -189,73 +189,32 @@ if (fs.existsSync(envPath)) {
   });
 }
 
-function parsePositiveInteger(value, fallback) {
-  if (value === undefined || value === null || value === '') {
-    return fallback;
+function normalizeBaseUrl(value) {
+  if (typeof value !== 'string') {
+    return '';
   }
-  const parsed = Number.parseInt(String(value), 10);
-  if (!Number.isFinite(parsed) || parsed <= 0) {
-    return fallback;
-  }
-  return parsed;
-}
-
-function parseIntegerOption(value, multiplier = 1) {
-  if (value === undefined || value === null || value === '') {
-    return null;
-  }
-  const parsed = Number.parseInt(String(value), 10);
-  if (!Number.isFinite(parsed) || parsed <= 0) {
-    return null;
-  }
-  return parsed * multiplier;
-}
-
-function normalizeUrl(value) {
-  if (value === undefined || value === null) {
-    return null;
-  }
-  const trimmed = String(value).trim();
+  const trimmed = value.trim();
   if (!trimmed) {
-    return null;
+    return '';
   }
   return trimmed.replace(/\/+$/, '');
 }
 
-function findErrorProperty(error, property, seen = new Set()) {
-  if (!error || typeof error !== 'object') {
-    return undefined;
-  }
-  if (seen.has(error)) {
-    return undefined;
-  }
-  seen.add(error);
-  if (error[property] !== undefined && error[property] !== null) {
-    return error[property];
-  }
-  if (error.cause) {
-    return findErrorProperty(error.cause, property, seen);
-  }
-  return undefined;
-}
-
-const directusUrlCandidates = [
-  ...directusUrlOverrides,
-  process.env.DIRECTUS_SEED_URL,
-  process.env.DIRECTUS_PUBLIC_URL,
-  process.env.NEXT_PUBLIC_CMS_URL,
-  process.env.CMS_INTERNAL_URL,
+const directusCandidates = [
   process.env.DIRECTUS_INTERNAL_URL,
-  'http://localhost/cms',
+  process.env.CMS_INTERNAL_URL,
+  process.env.DIRECTUS_PUBLIC_URL,
+  'http://directus:8055',
   'http://localhost:8055',
 ]
-  .map(normalizeUrl)
-  .filter(Boolean)
-  .filter((url, index, self) => self.indexOf(url) === index);
+  .map(normalizeBaseUrl)
+  .filter(Boolean);
 
-let directusUrl = directusUrlCandidates[0] || 'http://localhost:8055';
-const directusWaitTimeoutMs = parsePositiveInteger(waitTimeoutOverride ?? process.env.DIRECTUS_WAIT_TIMEOUT_MS, 300000);
-const directusWaitIntervalMs = parsePositiveInteger(waitIntervalOverride ?? process.env.DIRECTUS_WAIT_INTERVAL_MS, 2000);
+if (!directusCandidates.length) {
+  directusCandidates.push('http://localhost:8055');
+}
+
+const directusUrl = directusCandidates[0];
 const adminEmail = process.env.DIRECTUS_ADMIN_EMAIL;
 const adminPassword = process.env.DIRECTUS_ADMIN_PASSWORD;
 const adminStaticToken = (process.env.DIRECTUS_ADMIN_STATIC_TOKEN || '').trim();
@@ -292,6 +251,9 @@ function logDebug(...args) {
 }
 
 logDebug('Using Directus URL', directusUrl);
+if (directusCandidates.length > 1) {
+  logDebug('Directus URL fallbacks', directusCandidates.slice(1));
+}
 
 async function fetchWithTimeout(url, options = {}, timeoutMs = 15000) {
   if (options && options.signal) {
@@ -539,18 +501,28 @@ async function ensurePublicApiAccess(token) {
 }
 
 async function authenticate() {
-  logStep('Authenticating with Directus');
   const url = `${directusUrl}/auth/login`;
   const payload = {
     email: adminEmail,
     password: adminPassword,
   };
   logDebug('POST', url, '(auth)');
-  const response = await fetchWithTimeout(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-    body: JSON.stringify(payload),
-  }, 15000);
+  let response;
+  try {
+    response = await fetchWithTimeout(
+      url,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify(payload),
+      },
+      15000,
+    );
+  } catch (error) {
+    const authError = new Error(`Не удалось подключиться к ${url}: ${error.message}`);
+    authError.cause = error;
+    throw authError;
+  }
   logDebug('POST', url, '(auth) ->', response.status);
   if (!response.ok) {
     const text = await response.text();
@@ -561,6 +533,35 @@ async function authenticate() {
     throw new Error('Missing access token in Directus auth response');
   }
   return result.data.access_token;
+}
+
+async function authenticateWithRetry() {
+  let attempts = Number.parseInt(process.env.SEED_DIRECTUS_AUTH_ATTEMPTS || '5', 10);
+  if (!Number.isFinite(attempts) || attempts <= 0) {
+    attempts = 1;
+  }
+  let delay = Number.parseInt(process.env.SEED_DIRECTUS_AUTH_RETRY_DELAY || '4000', 10);
+  if (!Number.isFinite(delay) || delay < 0) {
+    delay = 0;
+  }
+  logStep('Authenticating with Directus');
+  let lastError;
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      return await authenticate();
+    } catch (error) {
+      lastError = error;
+      const prefix = attempts > 1 ? ` (attempt ${attempt}/${attempts})` : '';
+      console.warn(`Authentication failed${prefix}: ${error.message}`);
+      if (debug && error?.stack) {
+        console.warn(error.stack);
+      }
+      if (attempt < attempts) {
+        await sleep(delay);
+      }
+    }
+  }
+  throw lastError;
 }
 
 async function ensureSingleton(token, collection) {
@@ -868,7 +869,7 @@ async function main() {
       token = 'dry-run';
     } else {
       await waitForDirectus();
-      token = await authenticate();
+      token = await authenticateWithRetry();
       await ensurePublicApiAccess(token);
     }
 
