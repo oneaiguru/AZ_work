@@ -775,13 +775,18 @@ async function importRemoteFile(token, image) {
     return null;
   }
   try {
-    const body = {
-      url: image.url,
-      title: image.title || image.url,
-      data: {},
-    };
+    const metadata = {};
+    if (image.title) {
+      metadata.title = image.title;
+    } else if (image.url) {
+      metadata.title = image.url;
+    }
     if (image.description) {
-      body.data.description = image.description;
+      metadata.description = image.description;
+    }
+    const body = { url: image.url };
+    if (Object.keys(metadata).length > 0) {
+      body.data = metadata;
     }
     if (dryRun) {
       console.log(`[dry-run] Would import file ${image.url}`);
