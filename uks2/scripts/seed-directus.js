@@ -428,7 +428,30 @@ async function requestJson(url, options = {}) {
   return response.json();
 }
 
-async function getPublicRoleId(token) {
+async function findPublicPolicyId(token) {
+  const params = new URLSearchParams();
+  params.set('filter[icon][_eq]', 'public');
+  params.append('fields[]', 'id');
+  params.append('fields[]', 'name');
+  params.set('limit', '-1');
+  const response = await requestJson(`${directusUrl}/policies?${params.toString()}`, withAuth(token));
+  const policies = Array.isArray(response?.data) ? response.data : [];
+  const match =
+    policies.find((policy) => typeof policy?.name === 'string' && policy.name.toLowerCase().includes('public')) || policies[0];
+  if (match?.id) {
+    return match.id;
+  }
+  throw new Error('Не удалось определить политику Directus для публичного доступа.');
+}
+
+async function attachPolicyToRole(token, roleId, policyId) {
+  await requestJson(`${directusUrl}/access`, withAuth(token, {
+    method: 'POST',
+    body: JSON.stringify({ role: roleId, policy: policyId, sort: 1 }),
+  }));
+}
+
+async function getPublicRoleContext(token) {
   const params = new URLSearchParams();
   params.set('limit', '-1');
   params.append('fields[]', 'id');
@@ -439,14 +462,27 @@ async function getPublicRoleId(token) {
   const roles = Array.isArray(response?.data) ? response.data : [];
   const match = roles.find((role) => role?.key === 'public') || roles.find((role) => role?.name?.toLowerCase() === 'public');
   if (match?.id) {
-    return match.id;
+    const accessParams = new URLSearchParams();
+    accessParams.set('filter[role][_eq]', match.id);
+    accessParams.append('fields[]', 'id');
+    accessParams.append('fields[]', 'policy');
+    accessParams.set('limit', '1');
+    const accessUrl = `${directusUrl}/access?${accessParams.toString()}`;
+    const accessResponse = await requestJson(accessUrl, withAuth(token));
+    const attachment = Array.isArray(accessResponse?.data) ? accessResponse.data[0] : null;
+    let policyId = attachment?.policy;
+    if (!policyId) {
+      policyId = await findPublicPolicyId(token);
+      await attachPolicyToRole(token, match.id, policyId);
+    }
+    return { roleId: match.id, policyId };
   }
   throw new Error('Не удалось найти публичную роль в Directus.');
 }
 
-async function upsertPermission(token, roleId, collection, action, payload) {
+async function upsertPermission(token, policyId, collection, action, payload) {
   const params = new URLSearchParams();
-  params.set('filter[role][_eq]', roleId);
+  params.set('filter[policy][_eq]', policyId);
   params.set('filter[collection][_eq]', collection);
   params.set('filter[action][_eq]', action);
   const url = `${directusUrl}/permissions?${params.toString()}`;
@@ -461,18 +497,23 @@ async function upsertPermission(token, roleId, collection, action, payload) {
   }
   const created = await requestJson(`${directusUrl}/permissions`, withAuth(token, {
     method: 'POST',
-    body: JSON.stringify(Object.assign({ role: roleId, collection, action }, payload)),
+    body: JSON.stringify(Object.assign({ policy: policyId, collection, action }, payload)),
   }));
   return created?.data?.id;
 }
 
 async function ensurePublicApiAccess(token) {
   logStep('Ensuring public API permissions');
-  const roleId = await getPublicRoleId(token);
+  const { policyId } = await getPublicRoleContext(token);
   const collections = ['homepage', 'projects', 'procurements', 'documents', 'news_articles', 'contacts'];
-  const payload = { fields: '*', permissions: {}, validation: {} };
+  const payload = {
+    fields: ['*'],
+    permissions: null,
+    validation: null,
+    presets: null,
+  };
   for (const collection of collections) {
-    await upsertPermission(token, roleId, collection, 'read', payload);
+    await upsertPermission(token, policyId, collection, 'read', payload);
   }
 }
 
