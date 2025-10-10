@@ -12,6 +12,8 @@ const args = process.argv.slice(2);
 const flags = new Set();
 let dataFile = path.join(__dirname, 'seed-data.json');
 let maxImages = 12;
+let waitTimeoutOverride;
+let waitIntervalOverride;
 
 for (let index = 0; index < args.length; index += 1) {
   const arg = args[index];
@@ -51,6 +53,66 @@ for (let index = 0; index < args.length; index += 1) {
     index += 1;
     continue;
   }
+  if (arg.startsWith('--wait-timeout-ms=')) {
+    const value = parseIntegerOption(arg.slice('--wait-timeout-ms='.length));
+    if (value !== null) {
+      waitTimeoutOverride = value;
+    }
+    continue;
+  }
+  if (arg === '--wait-timeout-ms' && args[index + 1]) {
+    const value = parseIntegerOption(args[index + 1]);
+    if (value !== null) {
+      waitTimeoutOverride = value;
+    }
+    index += 1;
+    continue;
+  }
+  if (arg.startsWith('--wait-timeout=')) {
+    const value = parseIntegerOption(arg.slice('--wait-timeout='.length), 1000);
+    if (value !== null) {
+      waitTimeoutOverride = value;
+    }
+    continue;
+  }
+  if (arg === '--wait-timeout' && args[index + 1]) {
+    const value = parseIntegerOption(args[index + 1], 1000);
+    if (value !== null) {
+      waitTimeoutOverride = value;
+    }
+    index += 1;
+    continue;
+  }
+  if (arg.startsWith('--wait-interval-ms=')) {
+    const value = parseIntegerOption(arg.slice('--wait-interval-ms='.length));
+    if (value !== null) {
+      waitIntervalOverride = value;
+    }
+    continue;
+  }
+  if (arg === '--wait-interval-ms' && args[index + 1]) {
+    const value = parseIntegerOption(args[index + 1]);
+    if (value !== null) {
+      waitIntervalOverride = value;
+    }
+    index += 1;
+    continue;
+  }
+  if (arg.startsWith('--wait-interval=')) {
+    const value = parseIntegerOption(arg.slice('--wait-interval='.length), 1000);
+    if (value !== null) {
+      waitIntervalOverride = value;
+    }
+    continue;
+  }
+  if (arg === '--wait-interval' && args[index + 1]) {
+    const value = parseIntegerOption(args[index + 1], 1000);
+    if (value !== null) {
+      waitIntervalOverride = value;
+    }
+    index += 1;
+    continue;
+  }
   console.warn('Unknown argument:', arg);
 }
 
@@ -77,7 +139,31 @@ if (fs.existsSync(envPath)) {
   });
 }
 
+function parsePositiveInteger(value, fallback) {
+  if (value === undefined || value === null || value === '') {
+    return fallback;
+  }
+  const parsed = Number.parseInt(String(value), 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return fallback;
+  }
+  return parsed;
+}
+
+function parseIntegerOption(value, multiplier = 1) {
+  if (value === undefined || value === null || value === '') {
+    return null;
+  }
+  const parsed = Number.parseInt(String(value), 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return null;
+  }
+  return parsed * multiplier;
+}
+
 const directusUrl = (process.env.DIRECTUS_INTERNAL_URL || process.env.DIRECTUS_PUBLIC_URL || 'http://localhost:8055').replace(/\/$/, '');
+const directusWaitTimeoutMs = parsePositiveInteger(waitTimeoutOverride ?? process.env.DIRECTUS_WAIT_TIMEOUT_MS, 300000);
+const directusWaitIntervalMs = parsePositiveInteger(waitIntervalOverride ?? process.env.DIRECTUS_WAIT_INTERVAL_MS, 2000);
 const adminEmail = process.env.DIRECTUS_ADMIN_EMAIL;
 const adminPassword = process.env.DIRECTUS_ADMIN_PASSWORD;
 
@@ -99,8 +185,60 @@ if (!fs.existsSync(dataFile)) {
 
 const seedData = JSON.parse(fs.readFileSync(dataFile, 'utf8'));
 
+let currentStep = 'initializing';
+
 function logStep(message) {
+  currentStep = message;
   process.stdout.write(`\n==> ${message}\n`);
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function logErrorDetails(error, indent = '', seen = new WeakSet()) {
+  if (!error) {
+    console.error(`${indent}(no error object provided)`);
+    return;
+  }
+  if (typeof error !== 'object') {
+    console.error(`${indent}${String(error)}`);
+    return;
+  }
+  if (seen.has(error)) {
+    console.error(`${indent}[circular reference]`);
+    return;
+  }
+  seen.add(error);
+
+  const name = error.name || error.constructor?.name || 'Error';
+  const message = error.message || '(no message)';
+  console.error(`${indent}${name}: ${message}`);
+
+  if (error.stack) {
+    const stackLines = String(error.stack).split('\n');
+    const [, ...rest] = stackLines;
+    if (rest.length) {
+      console.error(`${indent}Stack trace:`);
+      rest.forEach((line) => {
+        console.error(`${indent}${line.trim()}`);
+      });
+    }
+  }
+
+  const extraKeys = Object.keys(error).filter((key) => !['name', 'message', 'stack', 'cause'].includes(key) && error[key] !== undefined);
+  if (extraKeys.length) {
+    const extra = {};
+    extraKeys.forEach((key) => {
+      extra[key] = error[key];
+    });
+    console.error(`${indent}Additional fields:`, extra);
+  }
+
+  if (error.cause) {
+    console.error(`${indent}Caused by:`);
+    logErrorDetails(error.cause, `${indent}  `, seen);
+  }
 }
 
 function withAuth(token, options = {}) {
@@ -115,7 +253,13 @@ function withAuth(token, options = {}) {
 }
 
 async function requestJson(url, options = {}) {
-  const response = await fetch(url, options);
+  let response;
+  try {
+    response = await fetch(url, options);
+  } catch (error) {
+    const method = options.method || 'GET';
+    throw new Error(`Request to ${url} (${method}) failed: ${error.message || error}`, { cause: error });
+  }
   if (!response.ok) {
     let details = '';
     try {
@@ -133,6 +277,109 @@ async function requestJson(url, options = {}) {
   return response.json();
 }
 
+async function waitForDirectusAvailability() {
+  if (!directusUrl) {
+    return;
+  }
+  logStep('Waiting for Directus to become reachable');
+  const healthUrl = `${directusUrl}/server/health`;
+  console.log(`Polling ${healthUrl} for up to ${directusWaitTimeoutMs}ms (minimum interval ${directusWaitIntervalMs}ms).`);
+  const startTime = Date.now();
+  const deadline = startTime + directusWaitTimeoutMs;
+  let attempt = 0;
+  let lastError = null;
+
+  while (Date.now() <= deadline) {
+    attempt += 1;
+    let attemptError = null;
+    const timeoutMs = Math.max(1000, directusWaitIntervalMs);
+    try {
+      const fetchOptions = {
+        method: 'GET',
+        headers: { Accept: 'application/json' },
+      };
+      let controller;
+      let timeoutId;
+      if (typeof AbortController === 'function') {
+        controller = new AbortController();
+        timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+        fetchOptions.signal = controller.signal;
+      }
+      let response;
+      try {
+        response = await fetch(healthUrl, fetchOptions);
+      } finally {
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+        }
+      }
+      if (response.ok) {
+        try {
+          const body = await response.json();
+          if (!body || body.status === 'ok') {
+            if (attempt > 1) {
+              const elapsedSeconds = ((Date.now() - startTime) / 1000).toFixed(1);
+              console.log(`Directus responded after ${attempt} attempts (${elapsedSeconds}s).`);
+            }
+            return;
+          }
+          attemptError = new Error(`Health endpoint reported status: ${JSON.stringify(body)}`);
+        } catch (error) {
+          if (attempt > 1) {
+            const elapsedSeconds = ((Date.now() - startTime) / 1000).toFixed(1);
+            console.log(`Directus responded after ${attempt} attempts (${elapsedSeconds}s).`);
+          }
+          return;
+        }
+      } else {
+        attemptError = new Error(`Unexpected status ${response.status}`);
+      }
+    } catch (error) {
+      if (error?.name === 'AbortError') {
+        attemptError = new Error(`Health check request timed out after ${timeoutMs}ms`, { cause: error });
+      } else {
+        attemptError = new Error(`Health check request failed: ${error.message || error}`, { cause: error });
+      }
+    }
+
+    if (attemptError) {
+      lastError = attemptError;
+      const remaining = deadline - Date.now();
+      const baseMessage = attemptError.message || String(attemptError);
+      const code = attemptError.code || attemptError.cause?.code;
+      const hostname = attemptError.hostname || attemptError.cause?.hostname;
+      const details = [baseMessage];
+      if (code && !baseMessage.includes(code)) {
+        details.push(`code=${code}`);
+      }
+      if (hostname && !baseMessage.includes(hostname)) {
+        details.push(`hostname=${hostname}`);
+      }
+      const reason = details.filter(Boolean).join(' ');
+      if (remaining <= 0) {
+        console.log(`Directus not ready (attempt ${attempt}): ${reason}. No time left to retry.`);
+        break;
+      }
+      const delay = Math.min(directusWaitIntervalMs * Math.pow(1.5, attempt - 1), 10000);
+      const waitMs = Math.max(250, delay);
+      const waitSeconds = (waitMs / 1000).toFixed(1);
+      const remainingSeconds = (remaining / 1000).toFixed(1);
+      console.log(`Directus not ready (attempt ${attempt}): ${reason}. Retrying in ${waitSeconds}s (time left ${remainingSeconds}s).`);
+      await sleep(waitMs);
+      continue;
+    }
+
+    break;
+  }
+
+  const elapsedSeconds = ((Date.now() - startTime) / 1000).toFixed(1);
+  const message = `Directus did not become reachable within ${directusWaitTimeoutMs}ms (${elapsedSeconds}s) after ${attempt} attempts.`;
+  if (lastError) {
+    throw new Error(message, { cause: lastError });
+  }
+  throw new Error(message);
+}
+
 async function authenticate() {
   logStep('Authenticating with Directus');
   const url = `${directusUrl}/auth/login`;
@@ -140,11 +387,16 @@ async function authenticate() {
     email: adminEmail,
     password: adminPassword,
   };
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-    body: JSON.stringify(payload),
-  });
+  let response;
+  try {
+    response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify(payload),
+    });
+  } catch (error) {
+    throw new Error(`Cannot reach Directus auth endpoint at ${url}: ${error.message || error}`, { cause: error });
+  }
   if (!response.ok) {
     const text = await response.text();
     throw new Error(`Cannot authenticate: ${response.status} ${text}`);
@@ -266,7 +518,12 @@ async function scrapeImagesFrom(url) {
     'User-Agent': 'uks2-seeder/1.0 (+https://uks.delightsoft.ru)',
     Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
   };
-  const response = await fetch(url, { headers });
+  let response;
+  try {
+    response = await fetch(url, { headers });
+  } catch (error) {
+    throw new Error(`Failed to download ${url}: ${error.message || error}`, { cause: error });
+  }
   if (!response.ok) {
     throw new Error(`Failed to download ${url}: ${response.status}`);
   }
@@ -439,6 +696,7 @@ async function main() {
       console.log('Запущен в режиме dry-run — запросы к Directus не выполняются.');
       token = 'dry-run';
     } else {
+      await waitForDirectusAvailability();
       token = await authenticate();
     }
 
@@ -464,7 +722,16 @@ async function main() {
 
     logStep('Seeding completed successfully');
   } catch (error) {
-    console.error('\nSeeding failed:', error.message);
+    console.error(`\nSeeding failed during step: ${currentStep}`);
+    logErrorDetails(error);
+    if (directusUrl) {
+      console.error('Directus URL:', directusUrl);
+    }
+    console.error('Flags:', {
+      dryRun,
+      skipImages,
+      truncateCollections,
+    });
     process.exitCode = 1;
   }
 }
