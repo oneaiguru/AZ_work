@@ -99,8 +99,56 @@ if (!fs.existsSync(dataFile)) {
 
 const seedData = JSON.parse(fs.readFileSync(dataFile, 'utf8'));
 
+let currentStep = 'initializing';
+
 function logStep(message) {
+  currentStep = message;
   process.stdout.write(`\n==> ${message}\n`);
+}
+
+function logErrorDetails(error, indent = '', seen = new WeakSet()) {
+  if (!error) {
+    console.error(`${indent}(no error object provided)`);
+    return;
+  }
+  if (typeof error !== 'object') {
+    console.error(`${indent}${String(error)}`);
+    return;
+  }
+  if (seen.has(error)) {
+    console.error(`${indent}[circular reference]`);
+    return;
+  }
+  seen.add(error);
+
+  const name = error.name || error.constructor?.name || 'Error';
+  const message = error.message || '(no message)';
+  console.error(`${indent}${name}: ${message}`);
+
+  if (error.stack) {
+    const stackLines = String(error.stack).split('\n');
+    const [, ...rest] = stackLines;
+    if (rest.length) {
+      console.error(`${indent}Stack trace:`);
+      rest.forEach((line) => {
+        console.error(`${indent}${line.trim()}`);
+      });
+    }
+  }
+
+  const extraKeys = Object.keys(error).filter((key) => !['name', 'message', 'stack', 'cause'].includes(key) && error[key] !== undefined);
+  if (extraKeys.length) {
+    const extra = {};
+    extraKeys.forEach((key) => {
+      extra[key] = error[key];
+    });
+    console.error(`${indent}Additional fields:`, extra);
+  }
+
+  if (error.cause) {
+    console.error(`${indent}Caused by:`);
+    logErrorDetails(error.cause, `${indent}  `, seen);
+  }
 }
 
 function withAuth(token, options = {}) {
@@ -115,7 +163,13 @@ function withAuth(token, options = {}) {
 }
 
 async function requestJson(url, options = {}) {
-  const response = await fetch(url, options);
+  let response;
+  try {
+    response = await fetch(url, options);
+  } catch (error) {
+    const method = options.method || 'GET';
+    throw new Error(`Request to ${url} (${method}) failed: ${error.message || error}`, { cause: error });
+  }
   if (!response.ok) {
     let details = '';
     try {
@@ -140,11 +194,16 @@ async function authenticate() {
     email: adminEmail,
     password: adminPassword,
   };
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-    body: JSON.stringify(payload),
-  });
+  let response;
+  try {
+    response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify(payload),
+    });
+  } catch (error) {
+    throw new Error(`Cannot reach Directus auth endpoint at ${url}: ${error.message || error}`, { cause: error });
+  }
   if (!response.ok) {
     const text = await response.text();
     throw new Error(`Cannot authenticate: ${response.status} ${text}`);
@@ -266,7 +325,12 @@ async function scrapeImagesFrom(url) {
     'User-Agent': 'uks2-seeder/1.0 (+https://uks.delightsoft.ru)',
     Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
   };
-  const response = await fetch(url, { headers });
+  let response;
+  try {
+    response = await fetch(url, { headers });
+  } catch (error) {
+    throw new Error(`Failed to download ${url}: ${error.message || error}`, { cause: error });
+  }
   if (!response.ok) {
     throw new Error(`Failed to download ${url}: ${response.status}`);
   }
@@ -464,7 +528,16 @@ async function main() {
 
     logStep('Seeding completed successfully');
   } catch (error) {
-    console.error('\nSeeding failed:', error.message);
+    console.error(`\nSeeding failed during step: ${currentStep}`);
+    logErrorDetails(error);
+    if (directusUrl) {
+      console.error('Directus URL:', directusUrl);
+    }
+    console.error('Flags:', {
+      dryRun,
+      skipImages,
+      truncateCollections,
+    });
     process.exitCode = 1;
   }
 }
