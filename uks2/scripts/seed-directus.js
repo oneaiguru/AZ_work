@@ -404,19 +404,25 @@ async function requestJson(url, options = {}) {
   return response.json();
 }
 
-async function findPublicPolicyId(token) {
+async function findPublicPolicyContext(token) {
   const params = new URLSearchParams();
   params.set('filter[icon][_eq]', 'public');
-  params.append('fields[]', 'id');
-  params.append('fields[]', 'name');
   params.set('limit', '-1');
+  params.set('fields', 'id,name,access.id,access.role');
   const response = await requestJson(`${directusUrl}/policies?${params.toString()}`, withAuth(token));
   const policies = Array.isArray(response?.data) ? response.data : [];
-  logDebug('Available policies', policies.map((policy) => ({ id: policy?.id, name: policy?.name })));
+  const normalized = policies.map((policy) => ({
+    id: policy?.id,
+    name: policy?.name,
+    roleId: Array.isArray(policy?.access)
+      ? policy.access.map((entry) => entry?.role).find((value) => typeof value === 'string' && value)
+      : undefined,
+  }));
+  logDebug('Available policies', normalized);
   const match =
-    policies.find((policy) => typeof policy?.name === 'string' && policy.name.toLowerCase().includes('public')) || policies[0];
+    normalized.find((policy) => typeof policy?.name === 'string' && policy.name.toLowerCase().includes('public')) || normalized[0];
   if (match?.id) {
-    return match.id;
+    return match;
   }
   throw new Error('Не удалось определить политику Directus для публичного доступа.');
 }
@@ -430,31 +436,75 @@ async function attachPolicyToRole(token, roleId, policyId) {
 }
 
 async function getPublicRoleContext(token) {
-  const params = new URLSearchParams();
-  params.append('fields[]', 'id');
-  params.append('fields[]', 'name');
-  const url = `${directusUrl}/roles/public?${params.toString()}`;
-  const response = await requestJson(url, withAuth(token));
-  const match = response?.data;
-  if (match?.id) {
-    logDebug('Found public role', { id: match.id, name: match.name });
-    const accessParams = new URLSearchParams();
-    accessParams.set('filter[role][_eq]', match.id);
-    accessParams.append('fields[]', 'id');
-    accessParams.append('fields[]', 'policy');
-    accessParams.set('limit', '1');
-    const accessUrl = `${directusUrl}/access?${accessParams.toString()}`;
-    const accessResponse = await requestJson(accessUrl, withAuth(token));
-    const attachment = Array.isArray(accessResponse?.data) ? accessResponse.data[0] : null;
-    let policyId = attachment?.policy;
-    if (!policyId) {
-      policyId = await findPublicPolicyId(token);
-      await attachPolicyToRole(token, match.id, policyId);
-    }
-    logDebug('Public role context', { roleId: match.id, policyId });
-    return { roleId: match.id, policyId };
+  const policy = await findPublicPolicyContext(token);
+  const policyId = policy.id;
+  let roleId = policy.roleId;
+  if (!roleId && process.env.DIRECTUS_PUBLIC_ROLE_ID) {
+    roleId = process.env.DIRECTUS_PUBLIC_ROLE_ID;
+    logDebug('Using DIRECTUS_PUBLIC_ROLE_ID from environment');
   }
-  throw new Error('Не удалось найти публичную роль в Directus.');
+  const triedEndpoints = [];
+  if (!roleId) {
+    const params = new URLSearchParams();
+    params.set('fields', 'id,name');
+    const url = `${directusUrl}/roles/public?${params.toString()}`;
+    triedEndpoints.push(url);
+    try {
+      const response = await requestJson(url, withAuth(token));
+      const match = response?.data;
+      if (match?.id) {
+        roleId = match.id;
+        logDebug('Found public role via /roles/public', { id: roleId, name: match.name });
+      }
+    } catch (error) {
+      if (error?.status === 403) {
+        logDebug('Access to /roles/public denied, relying on environment or existing attachments');
+      } else {
+        throw error;
+      }
+    }
+  }
+  if (!roleId) {
+    const accessParams = new URLSearchParams();
+    accessParams.set('filter[policy][_eq]', policyId);
+    accessParams.set('limit', '1');
+    accessParams.set('fields', 'id,role');
+    const accessUrl = `${directusUrl}/access?${accessParams.toString()}`;
+    triedEndpoints.push(accessUrl);
+    try {
+      const accessResponse = await requestJson(accessUrl, withAuth(token));
+      const attachment = Array.isArray(accessResponse?.data) ? accessResponse.data[0] : null;
+      if (attachment?.role) {
+        roleId = attachment.role;
+        logDebug('Derived public role from existing access attachment', { roleId });
+      }
+    } catch (error) {
+      if (error?.status !== 403) {
+        throw error;
+      }
+      logDebug('Unable to inspect access attachments due to permissions');
+    }
+  }
+  if (!roleId) {
+    throw new Error(
+      `Не удалось определить публичную роль Directus. Укажите идентификатор роли через DIRECTUS_PUBLIC_ROLE_ID и повторите запуск. Проверенные эндпоинты: ${
+        triedEndpoints.length ? triedEndpoints.join(', ') : 'нет'
+      }`,
+    );
+  }
+  if (!policy.roleId) {
+    try {
+      await attachPolicyToRole(token, roleId, policyId);
+    } catch (error) {
+      if (error?.status === 409) {
+        logDebug('Policy already attached to role, ignoring conflict');
+      } else {
+        throw error;
+      }
+    }
+  }
+  logDebug('Public role context', { roleId, policyId });
+  return { roleId, policyId };
 }
 
 async function upsertPermission(token, policyId, collection, action, payload) {
