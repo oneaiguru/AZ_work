@@ -330,17 +330,33 @@ function logErrorDetails(error, indent = '', seen = new WeakSet()) {
 }
 
 function withAuth(token, options = {}) {
-  const headers = Object.assign({
-    Authorization: `Bearer ${token}`,
-    Accept: 'application/json',
-  }, options.headers || {});
-  if (options.body && !(options.body instanceof FormData)) {
+  const {
+    headers: extraHeaders,
+    directusTokenTransport = 'header',
+    ...rest
+  } = options;
+
+  const headers = Object.assign({ Accept: 'application/json' }, extraHeaders || {});
+
+  if (rest.body && !(rest.body instanceof FormData)) {
     headers['Content-Type'] = 'application/json';
   }
-  const config = Object.assign({}, options, { headers });
+
+  const config = Object.assign({}, rest, { headers });
+
   if (token && token !== 'dry-run') {
-    config.directusAccessToken = token;
+    if (directusTokenTransport === 'query') {
+      config.directusAccessToken = token;
+    } else if (directusTokenTransport === 'both') {
+      config.directusAccessToken = token;
+      if (!headers.Authorization) {
+        headers.Authorization = `Bearer ${token}`;
+      }
+    } else if (directusTokenTransport !== 'none' && !headers.Authorization) {
+      headers.Authorization = `Bearer ${token}`;
+    }
   }
+
   return config;
 }
 
