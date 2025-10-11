@@ -64,15 +64,18 @@ cd AZ_work/uks2
 
 2. Откройте `.env` и настройте основные URL и базовые пути:
    - `NEXT_PUBLIC_SITE_URL=https://uks.delightsoft.ru`
-   - `NEXT_PUBLIC_CMS_URL=https://uks.delightsoft.ru/cms`
-   - `NEXT_PUBLIC_ASSETS_URL=https://uks.delightsoft.ru/cms/assets`
-   - `DIRECTUS_PUBLIC_URL=https://uks.delightsoft.ru/cms`
+   - `NEXT_PUBLIC_CMS_URL=https://uks.delightsoft.ru/admin`
+   - `NEXT_PUBLIC_ASSETS_URL=https://uks.delightsoft.ru/admin/assets`
+   - `DIRECTUS_PUBLIC_URL=https://uks.delightsoft.ru/admin`
    - `DIRECTUS_COOKIE_DOMAIN=.uks.delightsoft.ru`
-   - `DIRECTUS_REFRESH_COOKIE_PATH=/cms`
+   - `DIRECTUS_REFRESH_COOKIE_PATH=/admin`
    - `PGADMIN_BASE_PATH=/db`
+   - `PGADMIN_ENABLE_TLS=1`
+   - `PGADMIN_SSL_DOMAIN=uks.delightsoft.ru`
+   - `PGADMIN_SSL_DAYS=365`
    - `CMS_INTERNAL_URL=http://directus:8055`
 
-   Для локальной среды можно использовать `http://uks2.localhost`, `http://uks2.localhost/cms`, `DIRECTUS_COOKIE_DOMAIN=` (пустое значение) и `PGADMIN_BASE_PATH=/db`. Если вы обслуживаете сайт по HTTP, установите `DIRECTUS_REFRESH_COOKIE_SECURE=false`, чтобы Directus устанавливал cookie без флага Secure.
+   Для локальной среды можно использовать `http://uks2.localhost`, `http://uks2.localhost/admin`, `DIRECTUS_COOKIE_DOMAIN=` (пустое значение) и `PGADMIN_BASE_PATH=/db`. Если вы обслуживаете сайт по HTTP, установите `DIRECTUS_REFRESH_COOKIE_SECURE=false`, чтобы Directus устанавливал cookie без флага Secure.
 
 3. При необходимости скорректируйте SMTP, MinIO, Redis и учётные данные админов (`DIRECTUS_ADMIN_EMAIL`, `PGADMIN_DEFAULT_EMAIL` и т. д.).
 
@@ -80,24 +83,16 @@ cd AZ_work/uks2
 
 Файл `ops/nginx/default.conf` уже содержит правила для проксирования:
 - `/` → Next.js (`frontend:3000`)
-- `/cms/` → Directus (`directus:8055`)
-- `/db/` → pgAdmin (`pgadmin:80`)
+- `/admin/` → Directus (`directus:8055`)
+- `/db/` → pgAdmin (`pgadmin:443`)
 
-По умолчанию контейнер слушает только HTTP (порт 80). Чтобы включить HTTPS:
+Контейнер Nginx публикует порты 80 и 443. При первом старте скрипт `/docker-entrypoint.d/10-generate-cert.sh` создаёт самоподписанный сертификат в `ops/nginx/certs` с доменом из `NGINX_SSL_DOMAIN`. Чтобы заменить его боевым сертификатом:
 
 1. Выпустите сертификат любым удобным способом (например, `certbot certonly --standalone -d uks.delightsoft.ru`).
 2. Скопируйте `fullchain.pem` и `privkey.pem` в каталог `ops/nginx/certs/` и выставьте права `600`.
-3. Добавьте в `docker-compose.yml` монтирование каталога с сертификатами:
-   ```yaml
-   nginx:
-     volumes:
-       - ./ops/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
-       - ./ops/nginx/certs:/etc/nginx/certs:ro
-   ```
-4. Расширьте `ops/nginx/default.conf`, добавив серверный блок `listen 443 ssl http2;` с путями к сертификатам и редиректом с HTTP на HTTPS.
-5. Перезапустите стек: `docker compose up -d nginx`.
+3. Перезапустите прокси: `docker compose up -d nginx`.
 
-Альтернатива — оставить контейнер на 80‑м порту, а TLS терминировать на внешнем балансировщике/ingress.
+Если TLS терминируется на внешнем балансировщике, можно оставить самоподписанный сертификат или заменить его файлом от балансировщика.
 
 ## 5. Развёртывание контейнеров
 
@@ -116,16 +111,16 @@ docker compose logs -f directus
 
 После запуска сервисы будут доступны по адресам из `.env`, например:
 - `https://uks.delightsoft.ru` — публичный сайт (Next.js)
-- `https://uks.delightsoft.ru/cms/admin` — панель Directus
-- `https://uks.delightsoft.ru/cms/items/...` — REST API Directus
-- `https://uks.delightsoft.ru/cms/graphql` — GraphQL API
-- `https://uks.delightsoft.ru/db` — pgAdmin (PostgreSQL UI)
+- `https://uks.delightsoft.ru/admin` — панель Directus
+- `https://uks.delightsoft.ru/admin/items/...` — REST API Directus
+- `https://uks.delightsoft.ru/admin/graphql` — GraphQL API
+- `https://uks.delightsoft.ru/db` — pgAdmin (PostgreSQL UI, HTTPS-туннель через самоподписанный сертификат контейнера)
 
 Если TLS настроен внешним балансировщиком, замените `https://` на актуальную схему.
 
 ## 6. Первичная настройка Directus
 
-1. Зайдите в админку `https://uks.delightsoft.ru/cms/admin` и войдите с данными из `.env`.
+1. Зайдите в админку `https://uks.delightsoft.ru/admin` и войдите с данными из `.env`.
 2. Проверьте раздел **Settings → Storage** и привяжите бакеты MinIO (публичный и приватный).
 3. Включите запланированные задачи (flows) или интеграции, если они нужны.
 4. Создайте пользователей-редакторов и назначьте им готовые роли из снапшота.
@@ -182,4 +177,4 @@ sudo tar czf minio-data-$(date +%F).tar.gz -C /var/lib/docker/volumes/ $(docker 
 - **Нет доступа к MinIO** — проверьте, что бакеты созданы и креденшелы из `.env` совпадают.
 - **MinIO пишет `has incomplete body` по файлам `.usage.json` / `.bloomcycle.bin`** — после некорректной остановки могут повредиться временные метаданные. При следующем запуске контейнер выполнит `ops/minio/start-minio.sh` и удалит эти файлы, чтобы MinIO пересоздал их. Если сообщение остаётся, остановите стек и удалите локальный том `docker volume rm uks2_minio_data`.
 
-После выполнения шагов сайт будет обслуживаться Nginx, а CMS и pgAdmin будут доступны по вложенным путям `/cms` и `/db`.
+После выполнения шагов сайт будет обслуживаться Nginx, а CMS и pgAdmin будут доступны по вложенным путям `/admin` и `/db`.

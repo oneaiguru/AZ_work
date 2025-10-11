@@ -1,54 +1,114 @@
 {
-  "imageSources": [
-    "https://uks.irkutsk.ru/",
-    "https://uks.irkutsk.ru/projects/",
-    "https://uks.irkutsk.ru/press-tsentr/",
-    "https://uks.irkutsk.ru/zakupki/"
-  ],
+  "imageSources": [],
   "manualImages": [
     {
-      "url": "https://uks.irkutsk.ru/local/templates/uks/build/images/hero/banner.jpg",
+      "id": "hero-banner",
+      "file": "images/banner.jpg.b64",
+      "filename": "banner.jpg",
       "title": "Главный баннер УКС",
-      "description": "Фотография с главной страницы сайта УКС Иркутска"
+      "description": "Фотография с главной страницы сайта УКС Иркутска",
+      "sourceUrl": "https://uks.irkutsk.ru/local/templates/uks/build/images/hero/banner.jpg"
     },
     {
-      "url": "https://uks.irkutsk.ru/local/templates/uks/build/images/projects/quarter.jpg",
+      "id": "project-quarter",
+      "file": "images/quarter.jpg.b64",
+      "filename": "quarter.jpg",
       "title": "Квартал Возрождение",
-      "description": "Визуализация квартала Возрождение"
+      "description": "Визуализация квартала Возрождение",
+      "sourceUrl": "https://uks.irkutsk.ru/local/templates/uks/build/images/projects/quarter.jpg"
     },
     {
-      "url": "https://uks.irkutsk.ru/local/templates/uks/build/images/projects/school.jpg",
+      "id": "project-school",
+      "file": "images/school.jpg.b64",
+      "filename": "school.jpg",
       "title": "Школа в Академгородке",
-      "description": "Визуализация новой школы на 1275 мест"
+      "description": "Визуализация новой школы на 1275 мест",
+      "sourceUrl": "https://uks.irkutsk.ru/local/templates/uks/build/images/projects/school.jpg"
     },
     {
-      "url": "https://uks.irkutsk.ru/local/templates/uks/build/images/projects/ice-palace.jpg",
+      "id": "project-ice-palace",
+      "file": "images/ice-palace.jpg.b64",
+      "filename": "ice-palace.jpg",
       "title": "Ледовый дворец",
-      "description": "Проект ледового дворца в Иркутске"
+      "description": "Проект ледового дворца в Иркутске",
+      "sourceUrl": "https://uks.irkutsk.ru/local/templates/uks/build/images/projects/ice-palace.jpg"
     },
     {
-      "url": "https://uks.irkutsk.ru/local/templates/uks/build/images/about/office.jpg",
+      "id": "project-kindergarten",
+      "file": "images/kindergarten.jpg.b64",
+      "filename": "kindergarten.jpg",
+      "title": "Детский сад",
+      "description": "Визуализация детского сада в микрорайоне Синюшина гора",
+      "sourceUrl": "https://uks.irkutsk.ru/local/templates/uks/build/images/projects/kindergarten.jpg"
+    },
+    {
+      "id": "project-embankment",
+      "file": "images/embankment.jpg.b64",
+      "filename": "embankment.jpg",
+      "title": "Набережная Ангары",
+      "description": "Проект благоустройства набережной Ангары",
+      "sourceUrl": "https://uks.irkutsk.ru/local/templates/uks/build/images/projects/embankment.jpg"
+    },
+    {
+      "id": "about-office",
+      "file": "images/office.jpg.b64",
+      "filename": "office.jpg",
       "title": "Команда УКС",
-      "description": "Рабочие процессы в офисе УКС"
+      "description": "Рабочие процессы в офисе УКС",
+      "sourceUrl": "https://uks.irkutsk.ru/local/templates/uks/build/images/about/office.jpg"
     },
     {
-      "url": "https://images.unsplash.com/photo-1505843513577-22bb7d21e455?auto=format&fit=crop&w=1600&q=80",
-      "title": "Современный жилой квартал",
-      "description": "Запасное изображение на случай недоступности домена УКС"
+      "id": "news-school-frame",
+      "file": "images/school-frame.jpg.b64",
+      "filename": "school-frame.jpg",
+      "title": "Монтаж школы",
+      "description": "Репортаж с площадки школы на Академической",
+      "sourceUrl": "https://uks.irkutsk.ru/local/templates/uks/build/images/news/school-frame.jpg"
+    },
+    {
+      "id": "news-quarter-sign",
+      "file": "images/quarter-sign.jpg.b64",
+      "filename": "quarter-sign.jpg",
+      "title": "Подписание соглашения",
+      "description": "Согласование развития квартала \"Возрождение\"",
+      "sourceUrl": "https://uks.irkutsk.ru/local/templates/uks/build/images/news/quarter-sign.jpg"
+    },
+    {
+      "id": "news-embankment-start",
+      "file": "images/embankment-start.jpg.b64",
+      "filename": "embankment-start.jpg",
+      "title": "Старт благоустройства набережной",
+      "description": "Начало работ на набережной Ангары",
+      "sourceUrl": "https://uks.irkutsk.ru/local/templates/uks/build/images/news/embankment-start.jpg"
     }
   ],
   "homepage": {
     "hero": {
       "title": "УКС Иркутска — надежный заказчик городских проектов",
       "subtitle": "Комплексно управляем строительством школ, детских садов, объектов культуры и социального жилья в Иркутске.",
-      "primaryCta": { "label": "Открытые закупки", "href": "/zakupki" },
-      "secondaryCta": { "label": "Проекты УКС", "href": "/projects" },
+      "primaryCta": {
+        "label": "Открытые закупки",
+        "href": "/zakupki"
+      },
+      "secondaryCta": {
+        "label": "Проекты УКС",
+        "href": "/projects"
+      },
       "stats": [
-        { "label": "лет на рынке", "value": "17" },
-        { "label": "социальных объектов", "value": "120+" },
-        { "label": "кв. м строительства", "value": "450 000" }
+        {
+          "label": "лет на рынке",
+          "value": "17"
+        },
+        {
+          "label": "социальных объектов",
+          "value": "120+"
+        },
+        {
+          "label": "кв. м строительства",
+          "value": "450 000"
+        }
       ],
-      "imageUrl": "https://uks.irkutsk.ru/local/templates/uks/build/images/hero/banner.jpg"
+      "imageId": "hero-banner"
     },
     "about": {
       "intro": "Управление капитального строительства реализует стратегические программы развития городской среды Иркутска — от обследования площадок до ввода объектов в эксплуатацию.",
@@ -75,7 +135,7 @@
         "Благоустроенная набережная Ангары и общественные пространства",
         "Энергоэффективные дома и парковки на периметре квартала"
       ],
-      "imageUrl": "https://uks.irkutsk.ru/local/templates/uks/build/images/projects/quarter.jpg"
+      "imageId": "project-quarter"
     }
   },
   "contacts": {
@@ -94,7 +154,7 @@
       "year": 2025,
       "description": "Образовательный комплекс нового поколения с медиацентром, технопарком и спортивной инфраструктурой.",
       "sort": 10,
-      "imageUrl": "https://uks.irkutsk.ru/local/templates/uks/build/images/projects/school.jpg"
+      "imageId": "project-school"
     },
     {
       "title": "Детский сад в микрорайоне Синюшина гора",
@@ -103,7 +163,7 @@
       "year": 2024,
       "description": "Детский сад на 280 мест с бассейном, логопедическими и сенсорными комнатами.",
       "sort": 20,
-      "imageUrl": "https://uks.irkutsk.ru/local/templates/uks/build/images/projects/kindergarten.jpg"
+      "imageId": "project-kindergarten"
     },
     {
       "title": "Ледовый дворец для детско-юношеского спорта",
@@ -112,7 +172,7 @@
       "year": 2024,
       "description": "Ледовая арена на 2500 зрителей, тренировочный каток и центр подготовки фигуристов.",
       "sort": 30,
-      "imageUrl": "https://uks.irkutsk.ru/local/templates/uks/build/images/projects/ice-palace.jpg"
+      "imageId": "project-ice-palace"
     },
     {
       "title": "Реконструкция набережной Ангары",
@@ -121,7 +181,7 @@
       "year": 2023,
       "description": "Пешеходные маршруты, амфитеатр и смотровые площадки на правом берегу Ангары.",
       "sort": 40,
-      "imageUrl": "https://uks.irkutsk.ru/local/templates/uks/build/images/projects/embankment.jpg"
+      "imageId": "project-embankment"
     }
   ],
   "procurements": [
@@ -158,28 +218,28 @@
   ],
   "documents": [
     {
-      "title": "Положение о закупочной деятельности УКС",
+      "title": "Регламент закупок (демо-версия)",
       "category": "Закупки",
       "url": "https://uks.irkutsk.ru/upload/docs/polozhenie-zakupki.pdf",
       "documentDate": "2024-12-20",
       "sort": 10
     },
     {
-      "title": "Политика обработки персональных данных",
+      "title": "Политика обработки персональных данных (пример)",
       "category": "Персональные данные",
       "url": "https://uks.irkutsk.ru/upload/docs/pd-policy.pdf",
       "documentDate": "2024-09-15",
       "sort": 20
     },
     {
-      "title": "Годовой отчёт УКС за 2024 год",
+      "title": "Годовой отчёт УКС за 2024 год (макет)",
       "category": "Отчётность",
       "url": "https://uks.irkutsk.ru/upload/docs/annual-report-2024.pdf",
       "documentDate": "2024-12-31",
       "sort": 30
     },
     {
-      "title": "Устав МКУ \"УКС\"",
+      "title": "Устав МКУ \"УКС\" (демонстрационный файл)",
       "category": "Учредительные документы",
       "url": "https://uks.irkutsk.ru/upload/docs/ustav-uks.pdf",
       "documentDate": "2022-05-17",
@@ -191,19 +251,19 @@
       "title": "УКС завершил монтаж каркаса школы на Академической",
       "excerpt": "На площадке ведутся инженерные работы, подключение сетей и монтаж фасада.",
       "published_at": "2025-01-18T09:00:00+08:00",
-      "imageUrl": "https://uks.irkutsk.ru/local/templates/uks/build/images/news/school-frame.jpg"
+      "imageId": "news-school-frame"
     },
     {
       "title": "Подписано соглашение о развитии квартала \"Возрождение\"",
       "excerpt": "Город и застройщик согласовали график работ и меры по благоустройству.",
       "published_at": "2025-01-12T12:00:00+08:00",
-      "imageUrl": "https://uks.irkutsk.ru/local/templates/uks/build/images/news/quarter-sign.jpg"
+      "imageId": "news-quarter-sign"
     },
     {
       "title": "Стартовало благоустройство набережной Ангары",
       "excerpt": "Подрядчик приступил к монтажу амфитеатра и пирсов для маломерных судов.",
       "published_at": "2024-12-28T15:30:00+08:00",
-      "imageUrl": "https://uks.irkutsk.ru/local/templates/uks/build/images/news/embankment-start.jpg"
+      "imageId": "news-embankment-start"
     }
   ]
 }
