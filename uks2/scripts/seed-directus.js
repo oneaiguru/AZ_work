@@ -456,20 +456,20 @@ async function fetchRoleById(token, roleId) {
     const role = response?.data;
     if (role?.id) {
       logDebug('Resolved role via direct lookup', { id: role.id, name: role.name });
-      return role;
+      return Object.assign({ exists: true }, role);
     }
   } catch (error) {
     if (error?.status === 404) {
       logDebug('Direct lookup did not find role', roleId);
-      return null;
+      return { id: roleId, exists: false };
     }
     if (error?.status === 403) {
       logDebug('Direct lookup forbidden for role', roleId, '- continuing');
-      return { id: roleId };
+      return { id: roleId, exists: null };
     }
     throw error;
   }
-  return null;
+  return { id: roleId, exists: false };
 }
 
 function findLikelyPublicRole(roles) {
@@ -599,8 +599,10 @@ async function getPublicRoleContext(token) {
   const triedEndpoints = [];
   if (roleId) {
     const role = await fetchRoleById(token, roleId);
-    if (!role || !role.id) {
+    if (!role?.exists) {
       roleId = undefined;
+    } else {
+      roleId = role.id;
     }
   }
   if (!roleId) {
@@ -611,7 +613,7 @@ async function getPublicRoleContext(token) {
       const projectRoleId = info?.data?.project?.public_role;
       if (typeof projectRoleId === 'string' && projectRoleId) {
         const role = await fetchRoleById(token, projectRoleId);
-        if (role?.id) {
+        if (role?.exists) {
           roleId = role.id;
           logDebug('Found public role via /server/info', { roleId });
         }
@@ -636,7 +638,7 @@ async function getPublicRoleContext(token) {
       const match = Array.isArray(response?.data) ? response.data[0] : null;
       if (match?.id) {
         const role = await fetchRoleById(token, match.id);
-        if (role?.id) {
+        if (role?.exists) {
           roleId = role.id;
           logDebug('Found public role via /roles search', { id: roleId, name: match.name });
         }
@@ -661,7 +663,7 @@ async function getPublicRoleContext(token) {
       const match = Array.isArray(response?.data) ? response.data[0] : null;
       if (match?.id) {
         const role = await fetchRoleById(token, match.id);
-        if (role?.id) {
+        if (role?.exists) {
           roleId = role.id;
           logDebug('Found public role via icon filter', { id: roleId, name: match.name });
         }
@@ -686,7 +688,7 @@ async function getPublicRoleContext(token) {
       const attachment = Array.isArray(accessResponse?.data) ? accessResponse.data[0] : null;
       if (attachment?.role) {
         const role = await fetchRoleById(token, attachment.role);
-        if (role?.id) {
+        if (role?.exists) {
           roleId = role.id;
           logDebug('Derived public role from existing access attachment', { roleId });
         }
@@ -716,7 +718,7 @@ async function getPublicRoleContext(token) {
   }
   if (!roleId && DEFAULT_DIRECTUS_PUBLIC_ROLE_ID) {
     const candidate = await fetchRoleById(token, DEFAULT_DIRECTUS_PUBLIC_ROLE_ID);
-    if (candidate?.id) {
+    if (candidate?.exists) {
       roleId = candidate.id;
       logDebug('Using default Directus public role id', roleId);
     } else {
