@@ -1,8 +1,8 @@
 {
   "imageSources": [
     "https://uks.irkutsk.ru/",
-    "https://uks.irkutsk.ru/projects/",
-    "https://uks.irkutsk.ru/press-tsentr/",
+    "https://uks.irkutsk.ru/proekty/",
+    "https://uks.irkutsk.ru/novosti/",
     "https://uks.irkutsk.ru/zakupki/"
   ],
   "manualImages": [
@@ -27,14 +27,34 @@
       "description": "Проект ледового дворца в Иркутске"
     },
     {
+      "url": "https://uks.irkutsk.ru/local/templates/uks/build/images/projects/kindergarten.jpg",
+      "title": "Детский сад",
+      "description": "Визуализация детского сада в микрорайоне Синюшина гора"
+    },
+    {
+      "url": "https://uks.irkutsk.ru/local/templates/uks/build/images/projects/embankment.jpg",
+      "title": "Набережная Ангары",
+      "description": "Проект благоустройства набережной Ангары"
+    },
+    {
       "url": "https://uks.irkutsk.ru/local/templates/uks/build/images/about/office.jpg",
       "title": "Команда УКС",
       "description": "Рабочие процессы в офисе УКС"
     },
     {
-      "url": "https://images.unsplash.com/photo-1505843513577-22bb7d21e455?auto=format&fit=crop&w=1600&q=80",
-      "title": "Современный жилой квартал",
-      "description": "Запасное изображение на случай недоступности домена УКС"
+      "url": "https://uks.irkutsk.ru/local/templates/uks/build/images/news/school-frame.jpg",
+      "title": "Монтаж школы",
+      "description": "Репортаж с площадки школы на Академической"
+    },
+    {
+      "url": "https://uks.irkutsk.ru/local/templates/uks/build/images/news/quarter-sign.jpg",
+      "title": "Подписание соглашения",
+      "description": "Согласование развития квартала \"Возрождение\""
+    },
+    {
+      "url": "https://uks.irkutsk.ru/local/templates/uks/build/images/news/embankment-start.jpg",
+      "title": "Старт благоустройства набережной",
+      "description": "Начало работ на набережной Ангары"
     }
   ],
   "homepage": {
@@ -158,28 +178,28 @@
   ],
   "documents": [
     {
-      "title": "Положение о закупочной деятельности УКС",
+      "title": "Регламент закупок (демо-версия)",
       "category": "Закупки",
       "url": "https://uks.irkutsk.ru/upload/docs/polozhenie-zakupki.pdf",
       "documentDate": "2024-12-20",
       "sort": 10
     },
     {
-      "title": "Политика обработки персональных данных",
+      "title": "Политика обработки персональных данных (пример)",
       "category": "Персональные данные",
       "url": "https://uks.irkutsk.ru/upload/docs/pd-policy.pdf",
       "documentDate": "2024-09-15",
       "sort": 20
     },
     {
-      "title": "Годовой отчёт УКС за 2024 год",
+      "title": "Годовой отчёт УКС за 2024 год (макет)",
       "category": "Отчётность",
       "url": "https://uks.irkutsk.ru/upload/docs/annual-report-2024.pdf",
       "documentDate": "2024-12-31",
       "sort": 30
     },
     {
-      "title": "Устав МКУ \"УКС\"",
+      "title": "Устав МКУ \"УКС\" (демонстрационный файл)",
       "category": "Учредительные документы",
       "url": "https://uks.irkutsk.ru/upload/docs/ustav-uks.pdf",
       "documentDate": "2022-05-17",
