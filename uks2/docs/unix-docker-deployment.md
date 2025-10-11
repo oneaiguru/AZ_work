@@ -83,21 +83,13 @@ cd AZ_work/uks2
 - `/admin/` → Directus (`directus:8055`)
 - `/db/` → pgAdmin (`pgadmin:80`)
 
-По умолчанию контейнер слушает только HTTP (порт 80). Чтобы включить HTTPS:
+Контейнер Nginx публикует порты 80 и 443. При первом старте скрипт `/docker-entrypoint.d/10-generate-cert.sh` создаёт самоподписанный сертификат в `ops/nginx/certs` с доменом из `NGINX_SSL_DOMAIN`. Чтобы заменить его боевым сертификатом:
 
 1. Выпустите сертификат любым удобным способом (например, `certbot certonly --standalone -d uks.delightsoft.ru`).
 2. Скопируйте `fullchain.pem` и `privkey.pem` в каталог `ops/nginx/certs/` и выставьте права `600`.
-3. Добавьте в `docker-compose.yml` монтирование каталога с сертификатами:
-   ```yaml
-   nginx:
-     volumes:
-       - ./ops/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
-       - ./ops/nginx/certs:/etc/nginx/certs:ro
-   ```
-4. Расширьте `ops/nginx/default.conf`, добавив серверный блок `listen 443 ssl http2;` с путями к сертификатам и редиректом с HTTP на HTTPS.
-5. Перезапустите стек: `docker compose up -d nginx`.
+3. Перезапустите прокси: `docker compose up -d nginx`.
 
-Альтернатива — оставить контейнер на 80‑м порту, а TLS терминировать на внешнем балансировщике/ingress.
+Если TLS терминируется на внешнем балансировщике, можно оставить самоподписанный сертификат или заменить его файлом от балансировщика.
 
 ## 5. Развёртывание контейнеров
 

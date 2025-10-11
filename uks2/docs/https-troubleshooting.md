@@ -19,12 +19,15 @@ docker compose logs -f nginx
 sudo ss -tlnp | grep ':443'
 ```
 
-Если порт не открыт, проверьте, что в `ops/nginx/default.conf` есть блок `listen 443 ssl http2;` и контейнер запущен с монтированным каталогом сертификатов:
+Если порт не открыт, проверьте, что в `ops/nginx/default.conf` есть блок `listen 443 ssl http2;` и контейнер запущен с монтированным каталогом сертификатов (он же используется скриптом автогенерации):
 ```yaml
 volumes:
   - ./ops/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
-  - ./ops/nginx/certs:/etc/nginx/certs:ro
+  - ./ops/nginx/entrypoint.d:/docker-entrypoint.d:ro
+  - ./ops/nginx/certs:/etc/nginx/certs
 ```
+
+В логах Nginx должно появляться сообщение `Generating self-signed certificate ...` или `Using existing TLS certificate ...`. Если его нет, убедитесь, что файл `ops/nginx/entrypoint.d/10-generate-cert.sh` имеет права на исполнение (`chmod +x`).
 
 ## 3. Проверить сертификаты
 
