@@ -431,10 +431,161 @@ async function findPublicPolicyContext(token) {
 
 async function attachPolicyToRole(token, roleId, policyId) {
   logDebug('Attaching policy', policyId, 'to role', roleId);
-  await requestJson(`${directusUrl}/access`, withAuth(token, {
+  try {
+    await requestJson(`${directusUrl}/access`, withAuth(token, {
+      method: 'POST',
+      body: JSON.stringify({ role: roleId, policy: policyId, sort: 1 }),
+    }));
+  } catch (error) {
+    if (error?.status === 400 && /INVALID_FOREIGN_KEY/.test(String(error.message || ''))) {
+      throw new Error(
+        `Не удалось прикрепить публичную политику к роли ${roleId}. Проверьте, что эта роль существует в Directus ` +
+          'и повторите запуск сидера (при необходимости укажите DIRECTUS_PUBLIC_ROLE_ID).',
+      );
+    }
+    throw error;
+  }
+}
+
+async function fetchRoleById(token, roleId) {
+  if (!roleId) {
+    return null;
+  }
+  try {
+    const response = await requestJson(`${directusUrl}/roles/${roleId}`, withAuth(token));
+    const role = response?.data;
+    if (role?.id) {
+      logDebug('Resolved role via direct lookup', { id: role.id, name: role.name });
+      return role;
+    }
+  } catch (error) {
+    if (error?.status === 404) {
+      logDebug('Direct lookup did not find role', roleId);
+      return null;
+    }
+    if (error?.status === 403) {
+      logDebug('Direct lookup forbidden for role', roleId, '- continuing');
+      return { id: roleId };
+    }
+    throw error;
+  }
+  return null;
+}
+
+function findLikelyPublicRole(roles) {
+  const normalized = roles
+    .filter((role) => role && typeof role.id === 'string')
+    .map((role) => ({
+      id: role.id,
+      name: role?.name,
+      icon: role?.icon,
+      admin: role?.admin_access,
+      app: role?.app_access,
+    }));
+  if (!normalized.length) {
+    return null;
+  }
+  const byIcon = normalized.find((role) => role.icon === 'public');
+  if (byIcon) {
+    return byIcon;
+  }
+  const byName = normalized.find((role) => {
+    const name = typeof role.name === 'string' ? role.name.toLowerCase() : '';
+    return name.includes('public') || name.includes('публ');
+  });
+  if (byName) {
+    return byName;
+  }
+  const nonAdmin = normalized.filter((role) => role.admin === false);
+  if (nonAdmin.length === 1) {
+    return nonAdmin[0];
+  }
+  const nonAdminWithoutApp = nonAdmin.filter((role) => role.app === false);
+  if (nonAdminWithoutApp.length) {
+    return nonAdminWithoutApp[0];
+  }
+  return normalized[0];
+}
+
+async function listAllRoles(token) {
+  const params = new URLSearchParams();
+  params.set('fields', 'id,name,icon,admin_access,app_access');
+  params.set('limit', '-1');
+  const url = `${directusUrl}/roles?${params.toString()}`;
+  const response = await requestJson(url, withAuth(token));
+  const roles = Array.isArray(response?.data) ? response.data : [];
+  logDebug(
+    'Available roles overview',
+    roles.map((role) => ({
+      id: role?.id,
+      name: role?.name,
+      icon: role?.icon,
+      admin_access: role?.admin_access,
+      app_access: role?.app_access,
+    })),
+  );
+  return roles;
+}
+
+async function createPublicRole(token) {
+  if (dryRun) {
+    console.log('[dry-run] Would create Directus public role');
+    return { id: 'dry-run-public-role' };
+  }
+  logDebug('Creating new Directus public role');
+  const created = await requestJson(`${directusUrl}/roles`, withAuth(token, {
     method: 'POST',
-    body: JSON.stringify({ role: roleId, policy: policyId, sort: 1 }),
+    body: JSON.stringify({
+      name: 'Public',
+      icon: 'public',
+      description: 'Автоматически созданная роль для публичного доступа.',
+      admin_access: false,
+      app_access: false,
+    }),
   }));
+  const role = created?.data;
+  if (!role?.id) {
+    throw new Error('Directus не вернул идентификатор новой публичной роли.');
+  }
+  logDebug('Created public role', { id: role.id, name: role.name });
+  return role;
+}
+
+async function ensureProjectPublicRole(token, roleId) {
+  if (dryRun) {
+    console.log(`[dry-run] Would set project public_role to ${roleId}`);
+    return;
+  }
+  let currentRoleId;
+  try {
+    const settings = await requestJson(`${directusUrl}/settings`, withAuth(token));
+    currentRoleId = settings?.data?.project?.public_role;
+    logDebug('Current project public_role', currentRoleId);
+  } catch (error) {
+    if (error?.status === 403) {
+      logDebug('Access to /settings denied while reading current public_role — continuing');
+    } else if (error?.status !== 404) {
+      throw error;
+    }
+  }
+  if (currentRoleId === roleId) {
+    return;
+  }
+  try {
+    await requestJson(`${directusUrl}/settings`, withAuth(token, {
+      method: 'PATCH',
+      body: JSON.stringify({ project: { public_role: roleId } }),
+    }));
+    logDebug('Updated project public_role setting', roleId);
+  } catch (error) {
+    if (error?.status === 403) {
+      console.warn('Не удалось обновить настройки Directus: доступ запрещен. Продолжаем без изменения public_role.');
+    } else if (error?.status === 400) {
+      console.warn('Directus отклонил попытку обновить public_role (400). Продолжаем без изменения настройки.');
+    } else {
+      throw error;
+    }
+  }
 }
 
 async function getPublicRoleContext(token) {
@@ -446,6 +597,12 @@ async function getPublicRoleContext(token) {
     logDebug('Using DIRECTUS_PUBLIC_ROLE_ID from environment');
   }
   const triedEndpoints = [];
+  if (roleId) {
+    const role = await fetchRoleById(token, roleId);
+    if (!role || !role.id) {
+      roleId = undefined;
+    }
+  }
   if (!roleId) {
     const url = `${directusUrl}/server/info`;
     triedEndpoints.push(url);
@@ -453,8 +610,11 @@ async function getPublicRoleContext(token) {
       const info = await requestJson(url, withAuth(token));
       const projectRoleId = info?.data?.project?.public_role;
       if (typeof projectRoleId === 'string' && projectRoleId) {
-        roleId = projectRoleId;
-        logDebug('Found public role via /server/info', { roleId });
+        const role = await fetchRoleById(token, projectRoleId);
+        if (role?.id) {
+          roleId = role.id;
+          logDebug('Found public role via /server/info', { roleId });
+        }
       }
     } catch (error) {
       if (error?.status === 403) {
@@ -475,12 +635,15 @@ async function getPublicRoleContext(token) {
       const response = await requestJson(url, withAuth(token));
       const match = Array.isArray(response?.data) ? response.data[0] : null;
       if (match?.id) {
-        roleId = match.id;
-        logDebug('Found public role via /roles search', { id: roleId, name: match.name });
+        const role = await fetchRoleById(token, match.id);
+        if (role?.id) {
+          roleId = role.id;
+          logDebug('Found public role via /roles search', { id: roleId, name: match.name });
+        }
       }
     } catch (error) {
       if (error?.status === 403) {
-        logDebug('Access to /roles denied, relying on environment or existing attachments');
+        logDebug('Access to /roles denied, relying on other strategies');
       } else {
         throw error;
       }
@@ -497,12 +660,15 @@ async function getPublicRoleContext(token) {
       const response = await requestJson(url, withAuth(token));
       const match = Array.isArray(response?.data) ? response.data[0] : null;
       if (match?.id) {
-        roleId = match.id;
-        logDebug('Found public role via icon filter', { id: roleId, name: match.name });
+        const role = await fetchRoleById(token, match.id);
+        if (role?.id) {
+          roleId = role.id;
+          logDebug('Found public role via icon filter', { id: roleId, name: match.name });
+        }
       }
     } catch (error) {
       if (error?.status === 403) {
-        logDebug('Access to /roles with icon filter denied, relying on environment or existing attachments');
+        logDebug('Access to /roles with icon filter denied, continuing');
       } else {
         throw error;
       }
@@ -519,8 +685,11 @@ async function getPublicRoleContext(token) {
       const accessResponse = await requestJson(accessUrl, withAuth(token));
       const attachment = Array.isArray(accessResponse?.data) ? accessResponse.data[0] : null;
       if (attachment?.role) {
-        roleId = attachment.role;
-        logDebug('Derived public role from existing access attachment', { roleId });
+        const role = await fetchRoleById(token, attachment.role);
+        if (role?.id) {
+          roleId = role.id;
+          logDebug('Derived public role from existing access attachment', { roleId });
+        }
       }
     } catch (error) {
       if (error?.status !== 403) {
@@ -529,10 +698,35 @@ async function getPublicRoleContext(token) {
       logDebug('Unable to inspect access attachments due to permissions');
     }
   }
+  if (!roleId) {
+    try {
+      const roles = await listAllRoles(token);
+      const match = findLikelyPublicRole(roles);
+      if (match?.id) {
+        roleId = match.id;
+        logDebug('Selected likely public role from full list', { id: roleId, name: match.name });
+      }
+    } catch (error) {
+      if (error?.status === 403) {
+        logDebug('Unable to fetch full role list due to permissions');
+      } else {
+        throw error;
+      }
+    }
+  }
   if (!roleId && DEFAULT_DIRECTUS_PUBLIC_ROLE_ID) {
-    roleId = DEFAULT_DIRECTUS_PUBLIC_ROLE_ID;
-    triedEndpoints.push(`default:${DEFAULT_DIRECTUS_PUBLIC_ROLE_ID}`);
-    logDebug('Falling back to default Directus public role id', roleId);
+    const candidate = await fetchRoleById(token, DEFAULT_DIRECTUS_PUBLIC_ROLE_ID);
+    if (candidate?.id) {
+      roleId = candidate.id;
+      logDebug('Using default Directus public role id', roleId);
+    } else {
+      triedEndpoints.push(`default:${DEFAULT_DIRECTUS_PUBLIC_ROLE_ID}`);
+      logDebug('Default Directus public role id not found in instance');
+    }
+  }
+  if (!roleId) {
+    const created = await createPublicRole(token);
+    roleId = created.id;
   }
   if (!roleId) {
     throw new Error(
@@ -541,7 +735,8 @@ async function getPublicRoleContext(token) {
       }`,
     );
   }
-  if (!policy.roleId) {
+  await ensureProjectPublicRole(token, roleId);
+  if (!policy.roleId || policy.roleId !== roleId) {
     try {
       await attachPolicyToRole(token, roleId, policyId);
     } catch (error) {
