@@ -217,11 +217,13 @@ if (!directusCandidates.length) {
 const DEFAULT_DIRECTUS_PUBLIC_ROLE_ID = '00000000-0000-0000-0000-000000000001';
 
 const directusUrl = directusCandidates[0];
+const directusAccessTokenRaw = process.env.DIRECTUS_ACCESS_TOKEN || process.env.DIRECTUS_ADMIN_STATIC_TOKEN || '';
+const directusAccessToken = typeof directusAccessTokenRaw === 'string' ? directusAccessTokenRaw.trim() : '';
 const adminEmail = process.env.DIRECTUS_ADMIN_EMAIL;
 const adminPassword = process.env.DIRECTUS_ADMIN_PASSWORD;
 const adminStaticToken = (process.env.DIRECTUS_ADMIN_STATIC_TOKEN || '').trim();
 
-if (!accessTokenOverride && !adminStaticToken && (!adminEmail || !adminPassword)) {
+if (!directusAccessToken && (!adminEmail || !adminPassword)) {
   if (dryRun) {
     console.warn('DIRECTUS_ADMIN_EMAIL/DIRECTUS_ADMIN_PASSWORD не заданы — используем фиктивные значения для dry-run.');
     process.env.DIRECTUS_ADMIN_EMAIL = process.env.DIRECTUS_ADMIN_EMAIL || 'dry-run@example.com';
@@ -404,6 +406,70 @@ async function requestJson(url, options = {}) {
     return {};
   }
   return response.json();
+}
+
+function createUploadFile(arrayBuffer, filename, type) {
+  if (typeof File === 'function') {
+    return new File([arrayBuffer], filename, { type });
+  }
+  return new Blob([arrayBuffer], { type });
+}
+
+function shouldAttemptManualUpload(error) {
+  if (!error) {
+    return false;
+  }
+  const status = error.status;
+  if (status === 503 || status === 502 || status === 500 || status === 403) {
+    return true;
+  }
+  const message = String(error.message || '').toLowerCase();
+  return message.includes('external-file') || message.includes("couldn't fetch file");
+}
+
+async function downloadRemoteAsset(url) {
+  const headers = {
+    'User-Agent': 'uks2-seeder/1.0 (+https://uks.delightsoft.ru)',
+    Accept: 'image/avif,image/webp,image/apng,image/*,*/*;q=0.8',
+    Referer: 'https://uks.irkutsk.ru/',
+  };
+  const response = await fetchWithTimeout(url, { headers }, 15000);
+  if (!response.ok) {
+    throw new Error(`Failed to download ${url}: ${response.status}`);
+  }
+  const arrayBuffer = await response.arrayBuffer();
+  const contentType = response.headers.get('content-type') || 'application/octet-stream';
+  let filename = null;
+  try {
+    const parsed = new URL(url);
+    filename = parsed.pathname ? parsed.pathname.split('/').filter(Boolean).pop() : null;
+  } catch (error) {
+    filename = null;
+  }
+  if (!filename) {
+    filename = `image-${Date.now()}.jpg`;
+  }
+  return { arrayBuffer, contentType, filename };
+}
+
+async function uploadAssetToDirectus(token, image, asset) {
+  if (dryRun) {
+    console.log(`[dry-run] Would upload downloaded file ${image.url}`);
+    return null;
+  }
+  const form = new FormData();
+  if (image.title) {
+    form.set('title', image.title);
+  } else {
+    form.set('title', asset.filename);
+  }
+  if (image.description) {
+    form.set('description', image.description);
+  }
+  const filePart = createUploadFile(asset.arrayBuffer, asset.filename, asset.contentType);
+  form.set('file', filePart, asset.filename);
+  const response = await requestJson(`${directusUrl}/files`, withAuth(token, { method: 'POST', body: form }));
+  return response?.data?.id ?? null;
 }
 
 async function findPublicPolicyContext(token) {
@@ -857,6 +923,40 @@ async function authenticateWithRetry() {
   throw lastError;
 }
 
+async function ensureAdminContext(token) {
+  if (dryRun) {
+    return;
+  }
+  try {
+    const response = await requestJson(
+      `${directusUrl}/users/me?fields=id,email,role.id,role.name,role.admin_access`,
+      withAuth(token),
+    );
+    const user = response?.data;
+    if (user?.id) {
+      logDebug('Authenticated user context', {
+        id: user.id,
+        email: user.email,
+        role: user?.role?.name,
+        admin_access: user?.role?.admin_access,
+      });
+      if (user?.role?.admin_access === false) {
+        throw new Error(
+          'Указанная учётная запись Directus не имеет admin_access. Укажите DIRECTUS_ADMIN_EMAIL/DIRECTUS_ADMIN_PASSWORD ' +
+            'для администратора или задайте DIRECTUS_ACCESS_TOKEN с правами super-admin.',
+        );
+      }
+    }
+  } catch (error) {
+    if (error?.status === 403) {
+      throw new Error(
+        'Directus запретил запрос /users/me. Проверьте, что используете учётку администратора или static token с admin_access.',
+      );
+    }
+    throw error;
+  }
+}
+
 async function ensureSingleton(token, collection) {
   if (dryRun) {
     console.log(`[dry-run] Would ensure singleton ${collection}`);
@@ -866,12 +966,26 @@ async function ensureSingleton(token, collection) {
     await requestJson(`${directusUrl}/items/${collection}`, withAuth(token));
   } catch (error) {
     if (!/404/.test(String(error.message))) {
+      if (error?.status === 403) {
+        throw new Error(
+          `Directus отклонил попытку получить синглтон "${collection}". Проверьте, что используете админский логин/пароль или токен с правами администратора.`,
+        );
+      }
       throw error;
     }
-    await requestJson(`${directusUrl}/items/${collection}`, withAuth(token, {
-      method: 'POST',
-      body: JSON.stringify({}),
-    }));
+    try {
+      await requestJson(`${directusUrl}/items/${collection}`, withAuth(token, {
+        method: 'POST',
+        body: JSON.stringify({}),
+      }));
+    } catch (creationError) {
+      if (creationError?.status === 403) {
+        throw new Error(
+          `Directus запретил создание синглтона "${collection}". Запустите сидер с админскими правами или временно снимите ограничения.`,
+        );
+      }
+      throw creationError;
+    }
   }
 }
 
@@ -881,15 +995,40 @@ async function updateSingleton(token, collection, payload) {
     return;
   }
   await ensureSingleton(token, collection);
-  await requestJson(`${directusUrl}/items/${collection}`, withAuth(token, {
-    method: 'PATCH',
-    body: JSON.stringify(payload),
-  }));
+  try {
+    await requestJson(`${directusUrl}/items/${collection}`, withAuth(token, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    }));
+  } catch (error) {
+    if (error?.status === 403) {
+      throw new Error(
+        `Directus запретил обновление синглтона "${collection}". Убедитесь, что скрипт запускается с правами администратора.`,
+      );
+    }
+    throw error;
+  }
 }
 
 async function listIds(token, collection) {
-  const response = await requestJson(`${directusUrl}/items/${collection}?limit=-1&fields=id`, withAuth(token));
-  return Array.isArray(response?.data) ? response.data.map((item) => item.id).filter((id) => id !== null && id !== undefined) : [];
+  try {
+    const response = await requestJson(`${directusUrl}/items/${collection}?limit=-1&fields=id`, withAuth(token));
+    return Array.isArray(response?.data)
+      ? response.data.map((item) => item.id).filter((id) => id !== null && id !== undefined)
+      : [];
+  } catch (error) {
+    if (error?.status === 403) {
+      throw new Error(
+        `Directus запретил чтение коллекции "${collection}". Проверьте, что учётные данные администратора верны или используйте токен с правами super-admin.`,
+      );
+    }
+    if (error?.status === 404) {
+      throw new Error(
+        `Коллекция "${collection}" отсутствует в текущей схеме Directus. Примените snapshot (npx directus schema apply) или импортируйте схему перед запуском сидера.`,
+      );
+    }
+    throw error;
+  }
 }
 
 async function truncateCollection(token, collection) {
@@ -904,10 +1043,19 @@ async function truncateCollection(token, collection) {
   const chunkSize = 25;
   for (let index = 0; index < ids.length; index += chunkSize) {
     const chunk = ids.slice(index, index + chunkSize);
-    await requestJson(`${directusUrl}/items/${collection}`, withAuth(token, {
-      method: 'DELETE',
-      body: JSON.stringify({ keys: chunk }),
-    }));
+    try {
+      await requestJson(`${directusUrl}/items/${collection}`, withAuth(token, {
+        method: 'DELETE',
+        body: JSON.stringify({ keys: chunk }),
+      }));
+    } catch (error) {
+      if (error?.status === 403) {
+        throw new Error(
+          `Directus отказал в удалении записей коллекции "${collection}". Проверьте учётные данные администратора или токен доступа.`,
+        );
+      }
+      throw error;
+    }
   }
 }
 
@@ -919,9 +1067,23 @@ async function findExisting(token, collection, filterField, filterValue) {
   search.append(`filter[${filterField}][_eq]`, String(filterValue));
   search.append('limit', '1');
   search.append('fields', 'id');
-  const response = await requestJson(`${directusUrl}/items/${collection}?${search.toString()}`, withAuth(token));
-  const first = Array.isArray(response?.data) ? response.data[0] : null;
-  return first?.id ?? null;
+  try {
+    const response = await requestJson(`${directusUrl}/items/${collection}?${search.toString()}`, withAuth(token));
+    const first = Array.isArray(response?.data) ? response.data[0] : null;
+    return first?.id ?? null;
+  } catch (error) {
+    if (error?.status === 403) {
+      throw new Error(
+        `Directus запретил поиск в коллекции "${collection}" (поле ${filterField}). Проверьте admin-доступ и права роли.`,
+      );
+    }
+    if (error?.status === 404) {
+      throw new Error(
+        `Коллекция "${collection}" не найдена. Запустите миграции Directus или импортируйте snapshot перед посевом данных.`,
+      );
+    }
+    throw error;
+  }
 }
 
 async function upsertItem(token, collection, filterField, payload) {
@@ -933,17 +1095,40 @@ async function upsertItem(token, collection, filterField, payload) {
   const filterValue = payload[filterField];
   const existingId = await findExisting(token, collection, filterField, filterValue);
   if (existingId) {
-    await requestJson(`${directusUrl}/items/${collection}/${existingId}`, withAuth(token, {
-      method: 'PATCH',
-      body: JSON.stringify(payload),
-    }));
+    try {
+      await requestJson(`${directusUrl}/items/${collection}/${existingId}`, withAuth(token, {
+        method: 'PATCH',
+        body: JSON.stringify(payload),
+      }));
+    } catch (error) {
+      if (error?.status === 403) {
+        throw new Error(
+          `Directus запретил обновление записи коллекции "${collection}" (ID ${existingId}). Убедитесь, что используете админский токен/учётку.`,
+        );
+      }
+      throw error;
+    }
     return existingId;
   }
-  const response = await requestJson(`${directusUrl}/items/${collection}`, withAuth(token, {
-    method: 'POST',
-    body: JSON.stringify(payload),
-  }));
-  return response?.data?.id ?? null;
+  try {
+    const response = await requestJson(`${directusUrl}/items/${collection}`, withAuth(token, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }));
+    return response?.data?.id ?? null;
+  } catch (error) {
+    if (error?.status === 403) {
+      throw new Error(
+        `Directus запретил создание записи в коллекции "${collection}". Проверьте права учетной записи администратора.`,
+      );
+    }
+    if (error?.status === 404) {
+      throw new Error(
+        `Не удаётся создать запись коллекции "${collection}": коллекция отсутствует. Примените snapshot Directus перед запуском.`,
+      );
+    }
+    throw error;
+  }
 }
 
 function parseImageSources(data) {
@@ -1028,6 +1213,22 @@ async function importRemoteFile(token, image) {
     console.warn('Failed to import image', image.url, error.message);
     if (error?.name === 'TimeoutError') {
       console.warn('Загрузка прервана по таймауту — при необходимости запустите сидер с флагом --skip-images.');
+    }
+    if (shouldAttemptManualUpload(error)) {
+      try {
+        logDebug('Falling back to manual upload for', image.url);
+        const asset = await downloadRemoteAsset(image.url);
+        const uploadedId = await uploadAssetToDirectus(token, image, asset);
+        if (uploadedId) {
+          console.log(`Импортировано изображение через обходное скачивание: ${image.url}`);
+          return uploadedId;
+        }
+      } catch (fallbackError) {
+        console.warn('Manual upload failed for', image.url, fallbackError.message);
+        if (debug && fallbackError?.stack) {
+          console.warn(fallbackError.stack);
+        }
+      }
     }
     if (debug && error?.stack) {
       console.warn(error.stack);
@@ -1162,7 +1363,13 @@ async function main() {
       token = 'dry-run';
     } else {
       await waitForDirectus();
-      token = await authenticateWithRetry();
+      if (directusAccessToken) {
+        logStep('Using Directus access token from environment');
+        token = directusAccessToken;
+      } else {
+        token = await authenticateWithRetry();
+      }
+      await ensureAdminContext(token);
       await ensurePublicApiAccess(token);
     }
 
