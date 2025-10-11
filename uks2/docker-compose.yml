@@ -125,10 +125,24 @@ services:
         condition: service_started
       minio:
         condition: service_started
+      directus-storage-permissions:
+        condition: service_completed_successfully
     volumes:
       - ./directus/uploads:/directus/uploads
       - ./directus/extensions:/directus/extensions
       - ./directus/snapshot.yaml:/directus/snapshot.yaml:ro
+
+  directus-storage-permissions:
+    image: busybox:1.37.0
+    restart: "no"
+    command:
+      - /bin/sh
+      - -c
+      - >-
+        mkdir -p /directus/uploads &&
+        chown -R 1000:1000 /directus/uploads
+    volumes:
+      - ./directus/uploads:/directus/uploads
 
   frontend:
     build:

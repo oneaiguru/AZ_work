@@ -77,7 +77,7 @@ cd AZ_work/uks2
 
    Для локальной среды можно использовать `http://uks2.localhost`, `http://uks2.localhost/admin`, `DIRECTUS_COOKIE_DOMAIN=` (пустое значение) и `PGADMIN_BASE_PATH=/db`. Если вы обслуживаете сайт по HTTP, установите `DIRECTUS_REFRESH_COOKIE_SECURE=false`, чтобы Directus устанавливал cookie без флага Secure.
 
-3. При необходимости скорректируйте SMTP, MinIO, Redis и учётные данные админов (`DIRECTUS_ADMIN_EMAIL`, `PGADMIN_DEFAULT_EMAIL` и т. д.).
+3. При необходимости скорректируйте SMTP, MinIO, Redis и учётные данные админов (`DIRECTUS_ADMIN_EMAIL`, `PGADMIN_DEFAULT_EMAIL` и т. д.). Если планируется запуск скрипта сидирования без ввода пароля, создайте статический токен с ролью `admin` в Directus и сохраните его в `DIRECTUS_ADMIN_STATIC_TOKEN`.
 
 ## 4. Настройка Nginx и HTTPS
 
@@ -174,6 +174,12 @@ sudo tar czf minio-data-$(date +%F).tar.gz -C /var/lib/docker/volumes/ $(docker 
      ```
   4. Перезапустите Directus: `docker compose restart directus` и проверьте логи `docker compose logs -f directus`.
   5. Подробная инструкция с дополнительными сценариями приведена в [docs/directus-troubleshooting.md](directus-troubleshooting.md).
+- **Directus пишет `storage:local:responseTime in ERROR state` или health-check возвращает `EACCES`** — перезапустите сервис `directus-storage-permissions`:
+  ```bash
+  docker compose up directus-storage-permissions
+  docker compose restart directus
+  ```
+  Скрипт создаст каталог `directus/uploads` и выставит владельца `1000:1000`, чтобы контейнер Directus смог записывать файлы диагностики и загрузки.
 - **Нет доступа к MinIO** — проверьте, что бакеты созданы и креденшелы из `.env` совпадают.
 - **MinIO пишет `has incomplete body` по файлам `.usage.json` / `.bloomcycle.bin`** — после некорректной остановки могут повредиться временные метаданные. При следующем запуске контейнер выполнит `ops/minio/start-minio.sh` и удалит эти файлы, чтобы MinIO пересоздал их. Если сообщение остаётся, остановите стек и удалите локальный том `docker volume rm uks2_minio_data`.
 
