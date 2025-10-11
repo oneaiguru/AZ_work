@@ -70,6 +70,9 @@ cd AZ_work/uks2
    - `DIRECTUS_COOKIE_DOMAIN=.uks.delightsoft.ru`
    - `DIRECTUS_REFRESH_COOKIE_PATH=/admin`
    - `PGADMIN_BASE_PATH=/db`
+   - `PGADMIN_ENABLE_TLS=1`
+   - `PGADMIN_SSL_DOMAIN=uks.delightsoft.ru`
+   - `PGADMIN_SSL_DAYS=365`
    - `CMS_INTERNAL_URL=http://directus:8055`
 
    Для локальной среды можно использовать `http://uks2.localhost`, `http://uks2.localhost/admin`, `DIRECTUS_COOKIE_DOMAIN=` (пустое значение) и `PGADMIN_BASE_PATH=/db`. Если вы обслуживаете сайт по HTTP, установите `DIRECTUS_REFRESH_COOKIE_SECURE=false`, чтобы Directus устанавливал cookie без флага Secure.
@@ -81,7 +84,7 @@ cd AZ_work/uks2
 Файл `ops/nginx/default.conf` уже содержит правила для проксирования:
 - `/` → Next.js (`frontend:3000`)
 - `/admin/` → Directus (`directus:8055`)
-- `/db/` → pgAdmin (`pgadmin:80`)
+- `/db/` → pgAdmin (`pgadmin:443`)
 
 Контейнер Nginx публикует порты 80 и 443. При первом старте скрипт `/docker-entrypoint.d/10-generate-cert.sh` создаёт самоподписанный сертификат в `ops/nginx/certs` с доменом из `NGINX_SSL_DOMAIN`. Чтобы заменить его боевым сертификатом:
 
@@ -111,7 +114,7 @@ docker compose logs -f directus
 - `https://uks.delightsoft.ru/admin` — панель Directus
 - `https://uks.delightsoft.ru/admin/items/...` — REST API Directus
 - `https://uks.delightsoft.ru/admin/graphql` — GraphQL API
-- `https://uks.delightsoft.ru/db` — pgAdmin (PostgreSQL UI)
+- `https://uks.delightsoft.ru/db` — pgAdmin (PostgreSQL UI, HTTPS-туннель через самоподписанный сертификат контейнера)
 
 Если TLS настроен внешним балансировщиком, замените `https://` на актуальную схему.
 

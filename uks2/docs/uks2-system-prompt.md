@@ -31,7 +31,7 @@
    - Придерживайся современного муниципального тона: минимализм, большие заголовки (clamp до 3.75rem), фирменный шрифт Inter, адаптивные гриды.
 
 5. Настройка окружения
-   - `.env` должен содержать: публичные URL (`NEXT_PUBLIC_SITE_URL`, `NEXT_PUBLIC_CMS_URL`, `NEXT_PUBLIC_ASSETS_URL`), значения для Directus (ADMIN_EMAIL/PASSWORD, PUBLIC_URL, COOKIE_DOMAIN, REFRESH_COOKIE_SECURE, REFRESH_COOKIE_PATH), параметры PostgreSQL (DATABASE_HOST/NAME/USER/PASSWORD), переменные Redis, MinIO (ROOT_USER/PASSWORD, BUCKET_PUBLIC/PRIVATE) и pgAdmin (`PGADMIN_DEFAULT_EMAIL/PASSWORD`, `PGADMIN_BASE_PATH`).
+   - `.env` должен содержать: публичные URL (`NEXT_PUBLIC_SITE_URL`, `NEXT_PUBLIC_CMS_URL`, `NEXT_PUBLIC_ASSETS_URL`), значения для Directus (ADMIN_EMAIL/PASSWORD, PUBLIC_URL, COOKIE_DOMAIN, REFRESH_COOKIE_SECURE, REFRESH_COOKIE_PATH), параметры PostgreSQL (DATABASE_HOST/NAME/USER/PASSWORD), переменные Redis, MinIO (ROOT_USER/PASSWORD, BUCKET_PUBLIC/PRIVATE) и pgAdmin (`PGADMIN_DEFAULT_EMAIL/PASSWORD`, `PGADMIN_BASE_PATH`, `PGADMIN_ENABLE_TLS`, `PGADMIN_SSL_DOMAIN`, `PGADMIN_SSL_DAYS`).
    - Пропиши генератор `.env` на Node.js (`scripts/generate-env.js`) с режимами `--force` и `--rotate-db-password`, который сохраняет существующий пароль БД и при необходимости выполняет `ALTER USER` через `docker compose exec postgres`.
 
 6. Структура данных Directus (snapshot)

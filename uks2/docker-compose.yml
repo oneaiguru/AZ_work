@@ -38,23 +38,28 @@ services:
       retries: 5
 
   pgadmin:
-    image: dpage/pgadmin4:8.13
+    build:
+      context: ./ops/pgadmin
     restart: unless-stopped
     environment:
       PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL}
       PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD}
       PGADMIN_CONFIG_SERVER_MODE: "False"
       PGADMIN_CONFIG_PROXY_X_FOR_HEADERS: "True"
-      PGADMIN_CONFIG_SCRIPT_NAME: "\"${PGADMIN_BASE_PATH}\""
-      PGADMIN_CONFIG_APPLICATION_ROOT: "\"${PGADMIN_BASE_PATH}\""
-      PGADMIN_CONFIG_SESSION_COOKIE_PATH: "\"${PGADMIN_BASE_PATH}\""
-      PGADMIN_CONFIG_CSRF_COOKIE_PATH: "\"${PGADMIN_BASE_PATH}\""
-      PGADMIN_CONFIG_SECURITY_COOKIE_PATH: "\"${PGADMIN_BASE_PATH}\""
+      PGADMIN_CONFIG_SCRIPT_NAME: "'${PGADMIN_BASE_PATH}'"
+      PGADMIN_CONFIG_APPLICATION_ROOT: "'${PGADMIN_BASE_PATH}'"
+      PGADMIN_CONFIG_SESSION_COOKIE_PATH: "'${PGADMIN_BASE_PATH}'"
+      PGADMIN_CONFIG_CSRF_COOKIE_PATH: "'${PGADMIN_BASE_PATH}'"
+      PGADMIN_CONFIG_SECURITY_COOKIE_PATH: "'${PGADMIN_BASE_PATH}'"
+      PGADMIN_ENABLE_TLS: ${PGADMIN_ENABLE_TLS:-1}
+      PGADMIN_SSL_DOMAIN: ${PGADMIN_SSL_DOMAIN:-uks2.localhost}
+      PGADMIN_SSL_DAYS: ${PGADMIN_SSL_DAYS:-365}
     depends_on:
       postgres:
         condition: service_healthy
     volumes:
       - pgadmin_data:/var/lib/pgadmin
+      - ./ops/pgadmin/certs:/certs
 
   redis:
     image: redis:7-alpine
