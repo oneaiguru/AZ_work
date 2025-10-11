@@ -135,6 +135,8 @@ services:
       directus:
         condition: service_started
     command: ["node", "server.js"]
+    volumes:
+      - ./scripts:/app/scripts:ro
 
 volumes:
   postgres_data:
