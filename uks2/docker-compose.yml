@@ -11,8 +11,14 @@ services:
         condition: service_started
     ports:
       - "80:80"
+      - "443:443"
+    environment:
+      NGINX_SSL_DOMAIN: ${NGINX_SSL_DOMAIN:-uks2.localhost}
+      NGINX_SSL_DAYS: ${NGINX_SSL_DAYS:-365}
     volumes:
       - ./ops/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./ops/nginx/entrypoint.d:/docker-entrypoint.d:ro
+      - ./ops/nginx/certs:/etc/nginx/certs
 
   postgres:
     image: postgres:16-alpine
@@ -135,6 +141,8 @@ services:
       directus:
         condition: service_started
     command: ["node", "server.js"]
+    volumes:
+      - ./scripts:/app/scripts:ro
 
 volumes:
   postgres_data:
