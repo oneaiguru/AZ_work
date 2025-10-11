@@ -172,6 +172,7 @@ const debug = flags.has('debug');
 
 const projectRoot = path.resolve(__dirname, '..');
 const envPath = path.join(projectRoot, '.env');
+const assetsRoot = path.join(__dirname, 'assets');
 
 if (fs.existsSync(envPath)) {
   const content = fs.readFileSync(envPath, 'utf8');
@@ -415,6 +416,63 @@ function createUploadFile(arrayBuffer, filename, type) {
   return new Blob([arrayBuffer], { type });
 }
 
+function guessContentTypeFromFilename(filename) {
+  const ext = path.extname(filename || '').toLowerCase();
+  if (ext === '.jpg' || ext === '.jpeg' || ext === '.jfif') {
+    return 'image/jpeg';
+  }
+  if (ext === '.png') {
+    return 'image/png';
+  }
+  if (ext === '.webp') {
+    return 'image/webp';
+  }
+  if (ext === '.gif') {
+    return 'image/gif';
+  }
+  if (ext === '.svg') {
+    return 'image/svg+xml';
+  }
+  return 'application/octet-stream';
+}
+
+function resolveAssetPath(relativePath) {
+  if (typeof relativePath !== 'string' || !relativePath.trim()) {
+    throw new Error('Не указан путь до локального изображения.');
+  }
+  const normalized = relativePath.replace(/\\/g, '/');
+  const targetPath = path.join(assetsRoot, normalized);
+  const safeRelative = path.relative(assetsRoot, targetPath);
+  if (safeRelative.startsWith('..') || path.isAbsolute(safeRelative)) {
+    throw new Error(`Недопустимый путь локального файла: ${relativePath}`);
+  }
+  return targetPath;
+}
+
+function loadLocalAsset(image) {
+  const relative = image.file || image.localPath;
+  const targetPath = resolveAssetPath(relative);
+  if (!fs.existsSync(targetPath)) {
+    throw new Error(`Локальный файл изображения не найден: ${relative}`);
+  }
+  const base64Raw = fs.readFileSync(targetPath, 'utf8');
+  const base64 = base64Raw.replace(/\s+/g, '');
+  if (!base64) {
+    throw new Error(`Локальный файл изображения пуст: ${relative}`);
+  }
+  const buffer = Buffer.from(base64, 'base64');
+  if (!buffer.length) {
+    throw new Error(`Не удалось декодировать base64 для файла: ${relative}`);
+  }
+  let filename = image.filename;
+  if (!filename) {
+    const basename = path.basename(relative);
+    filename = basename.replace(/\.b64$/i, '') || `image-${Date.now()}.jpg`;
+  }
+  const contentType = guessContentTypeFromFilename(filename);
+  return { arrayBuffer: buffer, contentType, filename };
+}
+
 function shouldAttemptManualUpload(error) {
   if (!error) {
     return false;
@@ -453,8 +511,9 @@ async function downloadRemoteAsset(url) {
 }
 
 async function uploadAssetToDirectus(token, image, asset) {
+  const label = image?.url || image?.localPath || image?.file || asset?.filename || 'unnamed-file';
   if (dryRun) {
-    console.log(`[dry-run] Would upload downloaded file ${image.url}`);
+    console.log(`[dry-run] Would upload downloaded file ${label}`);
     return null;
   }
   const form = new FormData();
@@ -470,6 +529,40 @@ async function uploadAssetToDirectus(token, image, asset) {
   form.set('file', filePart, asset.filename);
   const response = await requestJson(`${directusUrl}/files`, withAuth(token, { method: 'POST', body: form }));
   return response?.data?.id ?? null;
+}
+
+function normalizeManualImages(list) {
+  if (!Array.isArray(list)) {
+    return [];
+  }
+  return list
+    .map((entry, index) => {
+      if (!entry || typeof entry !== 'object') {
+        return null;
+      }
+      const normalized = Object.assign({}, entry);
+      if (normalized.file && !normalized.localPath) {
+        normalized.localPath = normalized.file;
+      }
+      const key =
+        normalized.id ||
+        normalized.localPath ||
+        normalized.file ||
+        normalized.url ||
+        `manual-${index}`;
+      normalized.key = key;
+      return normalized;
+    })
+    .filter(Boolean);
+}
+
+async function importImageAsset(token, image) {
+  if (image?.file || image?.localPath) {
+    const asset = loadLocalAsset(image);
+    const descriptor = Object.assign({ localPath: image.localPath || image.file }, image);
+    return uploadAssetToDirectus(token, descriptor, asset);
+  }
+  return importRemoteFile(token, image);
 }
 
 async function findPublicPolicyContext(token) {
@@ -1246,9 +1339,12 @@ async function collectImages(token) {
     console.log('Skipping image import per --skip-images flag.');
     return new Map();
   }
-  logStep('Collecting illustrative images from uks.irkutsk.ru');
+  logStep('Collecting illustrative images');
   const collected = new Map();
   const sources = parseImageSources(seedData);
+  const manual = normalizeManualImages(seedData.manualImages);
+  const manualMap = new Map(manual.map((entry) => [entry.key, entry]));
+
   for (const source of sources) {
     if (collected.size >= maxImages) {
       break;
@@ -1276,26 +1372,26 @@ async function collectImages(token) {
     }
   }
 
-  const manual = Array.isArray(seedData.manualImages) ? seedData.manualImages : [];
   for (const entry of manual) {
     if (collected.size >= maxImages) {
       break;
     }
-    if (!collected.has(entry.url)) {
-      logDebug('Adding manual image', entry.url);
-      collected.set(entry.url, null);
+    if (!collected.has(entry.key)) {
+      logDebug('Adding manual image', entry.localPath || entry.file || entry.url || entry.key);
+      collected.set(entry.key, null);
     }
   }
 
   let index = 0;
-  for (const url of Array.from(collected.keys())) {
-    if (collected.get(url)) {
+  for (const key of Array.from(collected.keys())) {
+    if (collected.get(key)) {
       continue;
     }
-    logDebug('Importing image', url);
-    const image = manual.find((item) => item.url === url) || { url };
-    const fileId = await importRemoteFile(token, image);
-    collected.set(url, fileId);
+    const image = manualMap.get(key) || { url: key };
+    const label = image.localPath || image.file || image.url || key;
+    logDebug('Importing image', label);
+    const fileId = await importImageAsset(token, image);
+    collected.set(key, fileId);
     index += 1;
     if (index >= maxImages) {
       break;
@@ -1350,6 +1446,9 @@ async function seedCollection(token, collection, filterField, entries) {
     const payload = Object.assign({}, entry);
     if ('imageUrl' in payload) {
       delete payload.imageUrl;
+    }
+    if ('imageId' in payload) {
+      delete payload.imageId;
     }
     await upsertItem(token, collection, filterField, payload);
   }
