@@ -12,6 +12,10 @@ const args = process.argv.slice(2);
 const flags = new Set();
 let dataFile = path.join(__dirname, 'seed-data.json');
 let maxImages = 12;
+let waitTimeoutOverride;
+let waitIntervalOverride;
+let accessTokenOverride;
+const directusUrlOverrides = [];
 
 for (let index = 0; index < args.length; index += 1) {
   const arg = args[index];
@@ -51,6 +55,109 @@ for (let index = 0; index < args.length; index += 1) {
     const value = Number.parseInt(args[index + 1], 10);
     if (Number.isFinite(value) && value > 0) {
       maxImages = value;
+    }
+    index += 1;
+    continue;
+  }
+  if (arg.startsWith('--directus-url=')) {
+    const value = normalizeUrl(arg.slice('--directus-url='.length));
+    if (value) {
+      directusUrlOverrides.push(value);
+    }
+    continue;
+  }
+  if (arg === '--directus-url' && args[index + 1]) {
+    const value = normalizeUrl(args[index + 1]);
+    if (value) {
+      directusUrlOverrides.push(value);
+    }
+    index += 1;
+    continue;
+  }
+  if (arg.startsWith('--token=')) {
+    accessTokenOverride = arg.slice('--token='.length).trim();
+    continue;
+  }
+  if (arg === '--token' && args[index + 1]) {
+    accessTokenOverride = args[index + 1].trim();
+    index += 1;
+    continue;
+  }
+  if (arg.startsWith('--token-file=')) {
+    const tokenPath = path.resolve(process.cwd(), arg.slice('--token-file='.length));
+    if (fs.existsSync(tokenPath)) {
+      accessTokenOverride = fs.readFileSync(tokenPath, 'utf8').trim();
+    } else {
+      console.warn('Cannot read token file:', tokenPath);
+    }
+    continue;
+  }
+  if (arg === '--token-file' && args[index + 1]) {
+    const tokenPath = path.resolve(process.cwd(), args[index + 1]);
+    if (fs.existsSync(tokenPath)) {
+      accessTokenOverride = fs.readFileSync(tokenPath, 'utf8').trim();
+    } else {
+      console.warn('Cannot read token file:', tokenPath);
+    }
+    index += 1;
+    continue;
+  }
+  if (arg.startsWith('--wait-timeout-ms=')) {
+    const value = parseIntegerOption(arg.slice('--wait-timeout-ms='.length));
+    if (value !== null) {
+      waitTimeoutOverride = value;
+    }
+    continue;
+  }
+  if (arg === '--wait-timeout-ms' && args[index + 1]) {
+    const value = parseIntegerOption(args[index + 1]);
+    if (value !== null) {
+      waitTimeoutOverride = value;
+    }
+    index += 1;
+    continue;
+  }
+  if (arg.startsWith('--wait-timeout=')) {
+    const value = parseIntegerOption(arg.slice('--wait-timeout='.length), 1000);
+    if (value !== null) {
+      waitTimeoutOverride = value;
+    }
+    continue;
+  }
+  if (arg === '--wait-timeout' && args[index + 1]) {
+    const value = parseIntegerOption(args[index + 1], 1000);
+    if (value !== null) {
+      waitTimeoutOverride = value;
+    }
+    index += 1;
+    continue;
+  }
+  if (arg.startsWith('--wait-interval-ms=')) {
+    const value = parseIntegerOption(arg.slice('--wait-interval-ms='.length));
+    if (value !== null) {
+      waitIntervalOverride = value;
+    }
+    continue;
+  }
+  if (arg === '--wait-interval-ms' && args[index + 1]) {
+    const value = parseIntegerOption(args[index + 1]);
+    if (value !== null) {
+      waitIntervalOverride = value;
+    }
+    index += 1;
+    continue;
+  }
+  if (arg.startsWith('--wait-interval=')) {
+    const value = parseIntegerOption(arg.slice('--wait-interval='.length), 1000);
+    if (value !== null) {
+      waitIntervalOverride = value;
+    }
+    continue;
+  }
+  if (arg === '--wait-interval' && args[index + 1]) {
+    const value = parseIntegerOption(args[index + 1], 1000);
+    if (value !== null) {
+      waitIntervalOverride = value;
     }
     index += 1;
     continue;
@@ -112,14 +219,15 @@ const DEFAULT_DIRECTUS_PUBLIC_ROLE_ID = '00000000-0000-0000-0000-000000000001';
 const directusUrl = directusCandidates[0];
 const adminEmail = process.env.DIRECTUS_ADMIN_EMAIL;
 const adminPassword = process.env.DIRECTUS_ADMIN_PASSWORD;
+const adminStaticToken = (process.env.DIRECTUS_ADMIN_STATIC_TOKEN || '').trim();
 
-if (!adminEmail || !adminPassword) {
+if (!accessTokenOverride && !adminStaticToken && (!adminEmail || !adminPassword)) {
   if (dryRun) {
     console.warn('DIRECTUS_ADMIN_EMAIL/DIRECTUS_ADMIN_PASSWORD не заданы — используем фиктивные значения для dry-run.');
     process.env.DIRECTUS_ADMIN_EMAIL = process.env.DIRECTUS_ADMIN_EMAIL || 'dry-run@example.com';
     process.env.DIRECTUS_ADMIN_PASSWORD = process.env.DIRECTUS_ADMIN_PASSWORD || 'dry-run';
   } else {
-    console.error('DIRECTUS_ADMIN_EMAIL and DIRECTUS_ADMIN_PASSWORD must be set via environment variables or uks2/.env.');
+    console.error('DIRECTUS_ADMIN_EMAIL and DIRECTUS_ADMIN_PASSWORD must be set via environment variables or uks2/.env, or provide a static token with --token / DIRECTUS_ADMIN_STATIC_TOKEN.');
     process.exit(1);
   }
 }
@@ -131,7 +239,10 @@ if (!fs.existsSync(dataFile)) {
 
 const seedData = JSON.parse(fs.readFileSync(dataFile, 'utf8'));
 
+let currentStep = 'initializing';
+
 function logStep(message) {
+  currentStep = message;
   process.stdout.write(`\n==> ${message}\n`);
 }
 
@@ -207,14 +318,68 @@ async function waitForDirectus() {
 }
 
 function withAuth(token, options = {}) {
-  const headers = Object.assign({
-    Authorization: `Bearer ${token}`,
-    Accept: 'application/json',
-  }, options.headers || {});
-  if (options.body && !(options.body instanceof FormData)) {
+  const {
+    headers: extraHeaders,
+    directusTokenTransport = 'header',
+    ...rest
+  } = options;
+
+  const headers = Object.assign({ Accept: 'application/json' }, extraHeaders || {});
+
+  if (rest.body && !(rest.body instanceof FormData)) {
     headers['Content-Type'] = 'application/json';
   }
-  return Object.assign({}, options, { headers });
+
+  const config = Object.assign({}, rest, { headers });
+
+  if (token && token !== 'dry-run') {
+    if (directusTokenTransport === 'query') {
+      config.directusAccessToken = token;
+    } else if (directusTokenTransport === 'both') {
+      config.directusAccessToken = token;
+      if (!headers.Authorization) {
+        headers.Authorization = `Bearer ${token}`;
+      }
+    } else if (directusTokenTransport !== 'none' && !headers.Authorization) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+  }
+
+  config.directusTokenTransport = directusTokenTransport;
+  return config;
+}
+
+function appendAccessToken(url, token) {
+  if (!token) {
+    return url;
+  }
+  try {
+    const parsed = new URL(url);
+    if (!parsed.searchParams.has('access_token')) {
+      parsed.searchParams.append('access_token', token);
+    }
+    return parsed.toString();
+  } catch (error) {
+    const [base, hash] = url.split('#');
+    const separator = base.includes('?') ? '&' : '?';
+    const rebuilt = `${base}${separator}access_token=${encodeURIComponent(token)}`;
+    return hash ? `${rebuilt}#${hash}` : rebuilt;
+  }
+}
+
+function maskAccessToken(url) {
+  if (!url) {
+    return url;
+  }
+  try {
+    const parsed = new URL(url);
+    if (parsed.searchParams.has('access_token')) {
+      parsed.searchParams.set('access_token', '***');
+    }
+    return parsed.toString();
+  } catch (error) {
+    return url.replace(/access_token=[^&#]*/g, 'access_token=***');
+  }
 }
 
 async function requestJson(url, options = {}) {
@@ -837,13 +1002,18 @@ async function importRemoteFile(token, image) {
     return null;
   }
   try {
-    const body = {
-      url: image.url,
-      title: image.title || image.url,
-      data: {},
-    };
+    const metadata = {};
+    if (image.title) {
+      metadata.title = image.title;
+    } else if (image.url) {
+      metadata.title = image.url;
+    }
     if (image.description) {
-      body.data.description = image.description;
+      metadata.description = image.description;
+    }
+    const body = { url: image.url };
+    if (Object.keys(metadata).length > 0) {
+      body.data = metadata;
     }
     if (dryRun) {
       console.log(`[dry-run] Would import file ${image.url}`);
