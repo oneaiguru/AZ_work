@@ -1,0 +1,175 @@
+{
+  "version": "apartment.v1",
+  "units": {
+    "length": "mm"
+  },
+  "coordinateSystem": {
+    "origin": [
+      0.0,
+      0.0
+    ],
+    "x": "right",
+    "y": "up",
+    "elevationZero": 0.0
+  },
+  "outline": {
+    "type": "Polygon",
+    "vertices": [
+      [
+        273.3,
+        0.0
+      ],
+      [
+        8.8,
+        1481.1
+      ],
+      [
+        0.0,
+        1772.0
+      ],
+      [
+        0.0,
+        2036.5
+      ],
+      [
+        3015.1,
+        7361.5
+      ],
+      [
+        4893.0,
+        7370.3
+      ],
+      [
+        4901.8,
+        5915.6
+      ],
+      [
+        4822.4,
+        0.0
+      ],
+      [
+        273.3,
+        0.0
+      ]
+    ]
+  },
+  "entrance": {
+    "id": "door_entrance",
+    "edge": [
+      [
+        273.3,
+        0.0
+      ],
+      [
+        4822.4,
+        0.0
+      ]
+    ],
+    "offset": 900.0,
+    "width": 900.0,
+    "height": 2040.0,
+    "swing": "in",
+    "hinge": "left",
+    "from": "exterior",
+    "to": "z_main"
+  },
+  "zones": [
+    {
+      "id": "z_main",
+      "name": "Основная зона",
+      "polygon": [
+        [
+          273.3,
+          0.0
+        ],
+        [
+          8.8,
+          1481.1
+        ],
+        [
+          0.0,
+          1772.0
+        ],
+        [
+          0.0,
+          2036.5
+        ],
+        [
+          3015.1,
+          7361.5
+        ],
+        [
+          4893.0,
+          7370.3
+        ],
+        [
+          4901.8,
+          5915.6
+        ],
+        [
+          4822.4,
+          0.0
+        ],
+        [
+          273.3,
+          0.0
+        ]
+      ]
+    }
+  ],
+  "balconies": [],
+  "openings": {
+    "doors": [
+      {
+        "id": "door_entrance",
+        "edge": [
+          [
+            273.3,
+            0.0
+          ],
+          [
+            4822.4,
+            0.0
+          ]
+        ],
+        "offset": 900.0,
+        "width": 900.0,
+        "height": 2040.0,
+        "swing": "in",
+        "hinge": "left",
+        "from": "exterior",
+        "to": "z_main"
+      }
+    ],
+    "windows": []
+  },
+  "waterPoints": [],
+  "dimensions": [
+    {
+      "id": "overall_width",
+      "type": "linear",
+      "from": [
+        0.0,
+        0.0
+      ],
+      "to": [
+        4901.8,
+        0.0
+      ],
+      "value": 4901.8
+    },
+    {
+      "id": "overall_depth",
+      "type": "linear",
+      "from": [
+        0.0,
+        0.0
+      ],
+      "to": [
+        0.0,
+        7370.3
+      ],
+      "value": 7370.3
+    }
+  ]
+}
