@@ -1,21 +1,19 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { HttpException } from '@nestjs/common';
+import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 import { AgentController } from './agent.controller';
 import { AgentService } from '../services/agent.service';
-import { HttpException } from '@nestjs/common';
 
 describe('AgentController', () => {
   let controller: AgentController;
-  let agentService: { run: jest.Mock };
+  let agentService: { run: Mock };
 
-  beforeEach(async () => {
-    agentService = { run: jest.fn() };
+  beforeEach(() => {
+    agentService = { run: vi.fn() };
+    controller = new AgentController(agentService as unknown as AgentService);
+  });
 
-    const module: TestingModule = await Test.createTestingModule({
-      controllers: [AgentController],
-      providers: [{ provide: AgentService, useValue: agentService }],
-    }).compile();
-
-    controller = module.get<AgentController>(AgentController);
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   it('returns the agent service result', async () => {

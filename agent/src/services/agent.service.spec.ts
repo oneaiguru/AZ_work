@@ -1,24 +1,26 @@
 import { Logger } from '@nestjs/common';
+import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
+import type { Mock } from 'vitest';
+import { initializeAgentExecutorWithOptions } from 'langchain/agents';
+import { ChatOllama } from 'langchain/chat_models/ollama';
 import { AgentService } from './agent.service';
 import { ToolFactory } from './tool.factory';
 
 describe('AgentService', () => {
   let service: AgentService;
   let toolFactory: ToolFactory;
-  const mockInvoke = jest.fn();
-  const { initializeAgentExecutorWithOptions } = jest.requireMock('langchain/agents') as {
-    initializeAgentExecutorWithOptions: jest.Mock;
-  };
-  const { ChatOllama } = jest.requireMock('langchain/chat_models/ollama') as {
-    ChatOllama: jest.Mock;
-  };
+  const mockInvoke = vi.fn();
+  const initializeAgentExecutorWithOptionsMock = vi.mocked(
+    initializeAgentExecutorWithOptions,
+  );
+  const ChatOllamaMock = ChatOllama as unknown as Mock;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     mockInvoke.mockReset();
-    initializeAgentExecutorWithOptions.mockResolvedValue({ invoke: mockInvoke });
+    initializeAgentExecutorWithOptionsMock.mockResolvedValue({ invoke: mockInvoke });
 
-    toolFactory = { createTools: jest.fn().mockReturnValue(['tools']) } as unknown as ToolFactory;
+    toolFactory = { createTools: vi.fn().mockReturnValue(['tools']) } as unknown as ToolFactory;
     service = new AgentService(toolFactory);
     process.env.OLLAMA_BASE_URL = 'http://ollama:11434';
     process.env.OLLAMA_MODEL = 'yandex-lite';
@@ -39,15 +41,15 @@ describe('AgentService', () => {
 
     const result = await service.run('prompt', { foo: 'bar' });
 
-    expect(ChatOllama).toHaveBeenCalledWith({
+    expect(ChatOllamaMock).toHaveBeenCalledWith({
       baseUrl: 'http://ollama:11434',
       model: 'yandex-lite',
       temperature: 0.2,
     });
     expect(toolFactory.createTools).toHaveBeenCalledWith({ foo: 'bar' });
-    expect(initializeAgentExecutorWithOptions).toHaveBeenCalledWith(
+    expect(initializeAgentExecutorWithOptionsMock).toHaveBeenCalledWith(
       ['tools'],
-      ChatOllama.mock.instances[0],
+      ChatOllamaMock.mock.instances[0],
       {
         agentType: 'zero-shot-react-description',
         returnIntermediateSteps: true,
@@ -69,7 +71,7 @@ describe('AgentService', () => {
 
     await service.run('prompt');
 
-    expect(ChatOllama).toHaveBeenCalledWith({
+    expect(ChatOllamaMock).toHaveBeenCalledWith({
       baseUrl: 'http://localhost:11434',
       model: 'yandex-gpt-lite',
       temperature: 0,
@@ -86,7 +88,7 @@ describe('AgentService', () => {
 
   it('logs the prompt when running', async () => {
     mockInvoke.mockResolvedValueOnce({ output: 'done', intermediateSteps: [] });
-    const loggerSpy = jest.spyOn(Logger.prototype, 'debug').mockImplementation(() => undefined);
+    const loggerSpy = vi.spyOn(Logger.prototype, 'debug').mockImplementation(() => undefined);
 
     await service.run('prompt');
 

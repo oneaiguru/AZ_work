@@ -1,3 +1,4 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ToolFactory } from './tool.factory';
 
 describe('ToolFactory', () => {
@@ -8,11 +9,12 @@ describe('ToolFactory', () => {
   });
 
   afterEach(() => {
-    jest.useRealTimers();
+    vi.useRealTimers();
   });
 
   it('creates a time tool that returns the current ISO timestamp', async () => {
-    jest.useFakeTimers().setSystemTime(new Date('2024-02-29T12:34:56.000Z'));
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2024-02-29T12:34:56.000Z'));
 
     const [timeTool] = factory.createTools();
 

@@ -7,7 +7,7 @@ This package exposes a simple [NestJS](https://nestjs.com/) HTTP service that ru
 - ✅ NestJS application with validation, dependency injection, and modular structure.
 - ✅ LangChain agent executor configured with a time lookup and optional context lookup tool.
 - ✅ Compatible with lightweight YandexGPT models distributed for Ollama.
-- ✅ Extensive Jest test coverage with strict coverage thresholds and isolated unit tests.
+- ✅ Extensive Vitest coverage with strict thresholds and isolated unit tests.
 
 ## Prerequisites
 
@@ -63,7 +63,7 @@ curl -X POST http://localhost:3000/agent/run \
 
 ## Testing
 
-Unit tests run with Jest and enforce high coverage thresholds:
+Unit tests run with [Vitest](https://vitest.dev/) and enforce high coverage thresholds:
 
 ```bash
 npm test
@@ -81,7 +81,8 @@ agent/
 │   ├── services/          # Agent execution logic and tool factory
 │   ├── app.module.ts      # NestJS root module
 │   └── main.ts            # Application bootstrap
-├── jest.config.ts         # Jest + ts-jest configuration with coverage thresholds
+├── vitest.config.ts       # Vitest configuration with strict coverage thresholds
+├── vitest.setup.ts        # Shared mocks for LangChain dependencies in tests
 ├── package.json           # Scripts and dependencies
 ├── tsconfig*.json         # TypeScript build configurations
 └── README.md              # This documentation
