@@ -5,10 +5,12 @@ WORKDIR /workspace
 
 COPY gradlew ./
 COPY gradle gradle
+COPY scripts scripts
 COPY build.gradle.kts settings.gradle.kts ./
 COPY src src
 
-RUN chmod +x gradlew \
+RUN chmod +x gradlew scripts/prepare-wrapper.sh \
+    && scripts/prepare-wrapper.sh \
     && ./gradlew bootJar --no-daemon
 
 FROM eclipse-temurin:21-jre
