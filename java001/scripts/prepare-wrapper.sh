@@ -1,8 +1,17 @@
-#!/usr/bin/env bash
-set -euo pipefail
+#!/bin/sh
+set -eu
+SCRIPT_DIR="$(dirname "$0")"
+BASE64_FILE="$SCRIPT_DIR/../gradle/wrapper/gradle-wrapper.jar.base64"
+TARGET_JAR="$SCRIPT_DIR/../gradle/wrapper/gradle-wrapper.jar"
 
-BASE64_FILE="$(dirname "$0")/../gradle/wrapper/gradle-wrapper.jar.base64"
-TARGET_JAR="$(dirname "$0")/../gradle/wrapper/gradle-wrapper.jar"
+FORCE="false"
+if [ "${1:-}" = "--force" ]; then
+  FORCE="true"
+fi
+
+if [ "$FORCE" = "true" ] && [ -f "$TARGET_JAR" ]; then
+  rm -f "$TARGET_JAR"
+fi
 
 if [ -f "$TARGET_JAR" ]; then
   echo "Gradle wrapper JAR already restored at $TARGET_JAR"

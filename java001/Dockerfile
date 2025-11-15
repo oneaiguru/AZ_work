@@ -10,7 +10,7 @@ COPY build.gradle.kts settings.gradle.kts ./
 COPY src src
 
 RUN chmod +x gradlew scripts/prepare-wrapper.sh \
-    && scripts/prepare-wrapper.sh \
+    && ./scripts/prepare-wrapper.sh --force \
     && ./gradlew bootJar --no-daemon
 
 FROM eclipse-temurin:21-jre
