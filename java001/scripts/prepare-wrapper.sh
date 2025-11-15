@@ -21,6 +21,35 @@ cd "$PROJECT_ROOT"
 BASE64_FILE="gradle/wrapper/gradle-wrapper.jar.base64"
 TARGET_JAR="gradle/wrapper/gradle-wrapper.jar"
 
+normalize_gradle_launcher() {
+  LAUNCHER="$PROJECT_ROOT/gradlew"
+  [ -f "$LAUNCHER" ] || return 0
+
+  if command -v python3 >/dev/null 2>&1; then
+    python3 - "$LAUNCHER" <<'PY'
+import pathlib
+import sys
+
+path = pathlib.Path(sys.argv[1])
+data = path.read_bytes()
+
+if b"\r" not in data:
+    sys.exit(0)
+
+normalized = data.replace(b"\r\n", b"\n").replace(b"\r", b"\n")
+path.write_bytes(normalized)
+PY
+  else
+    TMP_FILE="$LAUNCHER.tmp"
+    tr -d '\r' < "$LAUNCHER" > "$TMP_FILE"
+    mv "$TMP_FILE" "$LAUNCHER"
+  fi
+
+  chmod 0755 "$LAUNCHER"
+}
+
+normalize_gradle_launcher
+
 FORCE=false
 if [ "${1:-}" = "--force" ]; then
   FORCE=true
