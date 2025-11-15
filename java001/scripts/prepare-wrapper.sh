@@ -1,29 +1,42 @@
 #!/bin/sh
 set -eu
 
-# Resolve the project root so the script can be invoked from any directory and
-# still place the decoded wrapper JAR where the Gradle wrapper expects it.
-SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
-PROJECT_ROOT=$(cd "$SCRIPT_DIR/.." && pwd)
-BASE64_FILE="$PROJECT_ROOT/gradle/wrapper/gradle-wrapper.jar.base64"
-TARGET_JAR="$PROJECT_ROOT/gradle/wrapper/gradle-wrapper.jar"
+# Resolve the script location without relying on the caller's working
+# directory so we can safely operate on repository-relative paths even when
+# the script is launched from somewhere else (for example inside Docker build
+# steps).
+SCRIPT_PATH=$0
+case $SCRIPT_PATH in
+  /*) ;;
+  *) SCRIPT_PATH=$(pwd)/$SCRIPT_PATH ;;
+esac
 
-FORCE="false"
+# "dirname" does not canonicalise the path, so resolve the absolute path to the
+# directory that contains this script and, from there, the project root.
+SCRIPT_DIR=$(cd "$(dirname "$SCRIPT_PATH")" && pwd -P)
+PROJECT_ROOT=$(cd "$SCRIPT_DIR/.." && pwd -P)
+
+cd "$PROJECT_ROOT"
+
+BASE64_FILE="gradle/wrapper/gradle-wrapper.jar.base64"
+TARGET_JAR="gradle/wrapper/gradle-wrapper.jar"
+
+FORCE=false
 if [ "${1:-}" = "--force" ]; then
-  FORCE="true"
+  FORCE=true
 fi
 
-if [ "$FORCE" = "true" ] && [ -f "$TARGET_JAR" ]; then
+if [ "$FORCE" = true ] && [ -f "$TARGET_JAR" ]; then
   rm -f "$TARGET_JAR"
 fi
 
 if [ -f "$TARGET_JAR" ]; then
-  echo "Gradle wrapper JAR already restored at $TARGET_JAR"
+  echo "Gradle wrapper JAR already restored at $PROJECT_ROOT/$TARGET_JAR"
   exit 0
 fi
 
 if [ ! -f "$BASE64_FILE" ]; then
-  echo "Base64 source $BASE64_FILE is missing" >&2
+  echo "Base64 source $PROJECT_ROOT/$BASE64_FILE is missing" >&2
   exit 1
 fi
 
@@ -53,13 +66,20 @@ except Exception as exc:  # pylint: disable=broad-except
 target_path.write_bytes(decoded)
 PY
 else
+  # Normalise whitespace before decoding so that we can tolerate embedded
+  # newlines regardless of which base64 implementation is available.
   if base64 --help 2>&1 | grep -q -- '--ignore-garbage'; then
-    base64 --decode --ignore-garbage "$BASE64_FILE" > "$DECODE_TMP"
+    tr -d '\r\n\t ' < "$BASE64_FILE" |
+      base64 --decode --ignore-garbage > "$DECODE_TMP"
+  elif base64 --help 2>&1 | grep -q -- '--decode'; then
+    tr -d '\r\n\t ' < "$BASE64_FILE" |
+      base64 --decode > "$DECODE_TMP"
   else
-    base64 --decode "$BASE64_FILE" > "$DECODE_TMP"
+    tr -d '\r\n\t ' < "$BASE64_FILE" |
+      base64 -d > "$DECODE_TMP"
   fi
 fi
 
 mv "$DECODE_TMP" "$TARGET_JAR"
 chmod 0644 "$TARGET_JAR"
-echo "Gradle wrapper JAR restored to $TARGET_JAR"
+echo "Gradle wrapper JAR restored to $PROJECT_ROOT/$TARGET_JAR"
