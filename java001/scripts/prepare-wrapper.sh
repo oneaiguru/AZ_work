@@ -1,8 +1,12 @@
 #!/bin/sh
 set -eu
-SCRIPT_DIR="$(dirname "$0")"
-BASE64_FILE="$SCRIPT_DIR/../gradle/wrapper/gradle-wrapper.jar.base64"
-TARGET_JAR="$SCRIPT_DIR/../gradle/wrapper/gradle-wrapper.jar"
+
+# Resolve the project root so the script can be invoked from any directory and
+# still place the decoded wrapper JAR where the Gradle wrapper expects it.
+SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
+PROJECT_ROOT=$(cd "$SCRIPT_DIR/.." && pwd)
+BASE64_FILE="$PROJECT_ROOT/gradle/wrapper/gradle-wrapper.jar.base64"
+TARGET_JAR="$PROJECT_ROOT/gradle/wrapper/gradle-wrapper.jar"
 
 FORCE="false"
 if [ "${1:-}" = "--force" ]; then
