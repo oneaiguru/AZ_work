@@ -41,7 +41,10 @@ path.write_bytes(normalized)
 PY
   else
     TMP_FILE="$LAUNCHER.tmp"
-    tr -d '\r' < "$LAUNCHER" > "$TMP_FILE"
+    # "sed" ships with BusyBox and all of our JDK base images, so we can
+    # rely on it to drop trailing carriage returns without needing extra
+    # dependencies.
+    sed 's/\r$//' "$LAUNCHER" > "$TMP_FILE"
     mv "$TMP_FILE" "$LAUNCHER"
   fi
 
