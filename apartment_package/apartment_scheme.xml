@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Apartment full scheme — built from user's sketch/photo and provided notes.
+     Some plan dimensions are approximate; see confidence attributes. -->
+<ApartmentScheme units="mm">
+  <Metadata>
+    <SourceImage>/mnt/data/photo_2025-09-26_16-52-27.jpg</SourceImage>
+    <AuthoringNote>Automatic interpretation of the sketch; horizontal plan sizes partially inferred (see confidence).</AuthoringNote>
+    <OriginDefinition>Coordinate origin (0,0) — lower-left internal corner of finished floor (after screed).</OriginDefinition>
+  </Metadata>
+
+  <PlanView>
+    <RoomPlan>
+      <OuterDimensions confidence="medium">
+        <Width value="2800" comment="label '2800' read on right side of sketch" confidence="medium"/>
+        <Depth value="2800" comment="assumed square from sketch; confirm with measured plan" confidence="low"/>
+        <WallThickness value="120" comment="typical assumed wall thickness; measure on plan" confidence="low"/>
+      </OuterDimensions>
+
+      <InnerDimensions>
+        <Width value="2560" computed="true">2560</Width>
+        <Depth value="2560" computed="true">2560</Depth>
+      </InnerDimensions>
+
+      <Walls>
+        <Wall id="W-North" side="north" start="(0,2560)" end="(2560,2560)" thickness="120"/>
+        <Wall id="W-East"  side="east"  start="(2560,2560)" end="(2560,0)"    thickness="120"/>
+        <Wall id="W-South" side="south" start="(2560,0)"    end="(0,0)"       thickness="120"/>
+        <Wall id="W-West"  side="west"  start="(0,0)"       end="(0,2560)"    thickness="120"/>
+      </Walls>
+
+      <Openings>
+        <Window id="W1" side="west" confidence="medium">
+          <PlanPosition>
+            <StartAlongWall axis="Y" value="470" comment="read as 470 near the window on the sketch" confidence="high"/>
+            <EndAlongWall axis="Y" value="1410" comment="if width 940 → 470+940=1410" confidence="medium"/>
+            <WallOffsetFromInnerCornerX value="0"/>
+            <WallSide>west</WallSide>
+          </PlanPosition>
+          <Width value="940" confidence="medium" comment="value '940' read near window on sketch; verify on plan"/>
+          <Notes>Bottom offset from finished floor: 480 mm; window height: 1570 mm.</Notes>
+        </Window>
+
+        <Door id="D1" side="south" confidence="low">
+          <PlanPosition>
+            <StartAlongWall axis="X" value="1900" comment="approximate based on sketch" confidence="low"/>
+            <EndAlongWall axis="X" value="2800" comment="end at outer wall boundary" confidence="low"/>
+            <WallSide>south</WallSide>
+          </PlanPosition>
+          <Width value="900" confidence="low" comment="assumed typical width; verify by measurement"/>
+          <Height value="2100" confidence="high" source="user_note"/>
+          <Notes>Door opening height provided by user: 2100 mm.</Notes>
+        </Door>
+      </Openings>
+
+      <PlanAnnotations>
+        <Annotation id="AN1" text="Label 2800 on right side of sketch" confidence="medium"/>
+        <Annotation id="AN2" text="Vertical note 2530 (room height) moved to VerticalSection" confidence="high"/>
+      </PlanAnnotations>
+    </RoomPlan>
+  </PlanView>
+
+  <VerticalSection>
+    <Floor reference="screed (finished floor)"/>
+    <RoomHeight value="2530" confidence="high">
+      <Description>Room height from finished floor (screed) to plastered ceiling.</Description>
+    </RoomHeight>
+
+    <WindowSection id="W1-section" refWindow="W1">
+      <BottomOffsetFromFloor value="480" confidence="high"/>
+      <WindowHeight value="1570" confidence="high"/>
+      <TopElevationFromFloor value="2050" computed="true">2050</TopElevationFromFloor>
+      <ClearanceAboveToCeiling value="480" computed="true">480</ClearanceAboveToCeiling>
+    </WindowSection>
+
+    <DoorSection id="D1-section" refDoor="D1">
+      <Height value="2100" confidence="high"/>
+      <ClearanceAboveToCeiling value="430" computed="true">430</ClearanceAboveToCeiling>
+      <Width value="900" confidence="low" comment="width assumed; verify on site"/>
+    </DoorSection>
+  </VerticalSection>
+
+  <Recommendations>
+    <R1>To obtain precise plan coordinates and wall thicknesses, provide high-resolution original drawing (PDF/DWG) or measured dimensions.</R1>
+    <R2>If you confirm the outer plan is 2800×2800 mm, I will recompute coordinates and set confidence to high.</R2>
+  </Recommendations>
+</ApartmentScheme>

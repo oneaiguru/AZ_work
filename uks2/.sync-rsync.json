@@ -1,0 +1,12 @@
+{
+  "remote_host": "zork@194.190.152.35",
+  "remote_path": "/srv/uks2",
+  "local_path": "./",
+  "ignore": [
+    ".git",
+    "node_modules",
+    ".vscode",
+    "*.log"
+  ],
+  "options": "-avz --delete"
+}
