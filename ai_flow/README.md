@@ -8,7 +8,7 @@
   python ai_flow.py init-project <путь/к/проекту> [--title "Название"] [--date YYYY-MM-DD]
   ```
   При инициализации автоматически создаётся ветка `A` со стартовым шагом `001`.
-- Создать ветку:  
+- Создать ветку (`create-branch`, `cb`, `branch`):  
   ```bash
   python ai_flow.py create-branch <project_path> <branch_id> ^
     [--title "Название"] [--parent <ветка>] [--from-step <A_002>] ^
@@ -16,11 +16,12 @@
   ```
   Можно не указывать `branch_id` — он сгенерируется автоматически (A..Z, потом ZA, ZB, ...).  
   При создании любой ветки автоматически создаётся первый шаг `001` (включая шаблон файлов).
-- Создать шаг:  
+- Создать шаг (`new-step`, `ns`):  
   ```bash
   python ai_flow.py new-step <project_path> <branch_id> <step_id> [--from-step <A_002>]
   ```
   Если не указать `step_id`, выберется следующий номер в ветке: 001, 002, ...
+  Команда проверяет чистоту git-рабочей директории, коммитит новые файлы и создаёт отдельную ветку `branch_id/step_id`.
 - Сгенерировать диаграмму по веткам и шагам:  
   ```bash
   python ai_flow.py diagram <project_path> [--output branches/diagram.mmd]
@@ -46,7 +47,16 @@
 - `init-project` выполняет `git init`, если репозиторий отсутствует.
 - `create-branch` создаёт git-ветку с именем branch_id. Если указан `--parent`, ветка базируется на родительской; иначе — на текущей HEAD.
 - `create-branch` автоматически создаёт шаг `001` (с шаблонами) в новой ветке.
-- `new-step` перед созданием файлов переключается на git-ветку branch_id (создаст её от родительской, если её ещё нет) и откажется работать, если в репозитории есть незакоммиченные изменения.
+- `new-step` (`ns`) проверяет чистоту git-работы, нормализует числовые шаги (например: `--step 2` → `A_002`), коммитит шаблоны и фиксирует новый шаг как отдельную ветку `branch_id/step_id`.
+- `switch` (`s`) позволяет переключаться между ветками и шагами (`--step 2` → `branch_id/A_002`), проверяет git-статус и работает независимо от того, на каком step-branch вы сейчас сидите.
+- `commit` — добавляет все изменения в индекс и создаёт коммит с сообщением, сгенерированным через Codex на основе `codex_commit_prompt.txt`, git-статуса/диффа и (опционально) `--prompt`. Можно задать `--message`, чтобы использовать собственный текст, или переопределить команду, установив `AI_FLOW_CODEX_CMD`. В веб-интерфейсе страница `Commit` дополняет эту команду многострочным контекстом, а выбор каталога проекта сохраняется в браузере.
+
+## CLI aliases / короткие команды
+- `init-project` = `init`
+- `create-branch` = `cb` / `branch`
+- `new-step` = `ns`
+- `switch` = `s`
+- `diagram` = `diag`
 
 ## Пример сценария с ветвлением
 1. Стартуем основную ветку:  
@@ -109,3 +119,65 @@
 2025-01-21 | A_main/A_002 | status: success | Итог: улучшили промпт, метрика recall +6%.
 2025-01-21 | B_alt-from-A_002/B_001 | status: partial | Итог: без постфильтра precision просел, нужна доп. фильтрация источников.
 ```
+
+## Веб-интерфейс
+
+В каталоге `ai_flow_web` лежит FastAPI/Jinja2 интерфейс, который вызывает те же команды `ai_flow.py` и валидирует аргументы до запуска. Интерфейс всегда ограничивает видимые проекты корнем `AI_FLOW_WEB_ROOT` (по умолчанию это корень репозитория `ai_flow`). Задайте переменную окружения, чтобы переопределить корень или ограничить список проектов.
+
+1. Перейдите в `ai_flow_web`:  
+   ```powershell
+   Set-Location .\ai_flow_web
+   $env:AI_FLOW_WEB_ROOT='C:\work\oneaiguru\AZ_work\ai_flow'
+   python -m venv .venv
+   .\.venv\Scripts\Activate.ps1
+   pip install -r requirements.txt
+   python -m uvicorn app:app --reload --port 8000
+   ```
+   На macOS/Linux используйте:
+   ```bash
+   cd ai_flow_web
+   export AI_FLOW_WEB_ROOT="$PWD/.."
+   python -m venv .venv
+   source .venv/bin/activate
+   pip install -r requirements.txt
+   python -m uvicorn app:app --reload --port 8000
+   ```
+2. Откройте `http://127.0.0.1:8000` — UI видит только каталоги внутри `AI_FLOW_WEB_ROOT`, поэтому перебирайте проекты безопасно и повторно используйте окружение между запусками.
+3. На формах доступен интерактивный подбор проекта из списка (данные подгружаются с сервера, и выбранная папка сохраняется в localStorage). Страница `Commit` использует многострочный ввод для Codex и повторно запускает `python ai_flow.py commit`, а при необходимости можно указать `AI_FLOW_CODEX_CMD="python path/to/fake_codex.py"` прямо из браузера.
+
+## Dev-зависимости и Codecov
+
+1. Установите dev-зависимости:  
+   ```bash
+   python -m pip install -r requirements-dev.txt
+   ```
+2. Запустите юниты:  
+   ```bash
+   python -m unittest tests
+   ```
+3. Соберите покрытие перед отправкой в Codecov:  
+   ```bash
+   coverage run -m unittest tests
+   coverage xml
+   ```
+   Файл `codecov.yml` уже настроен, чтобы игнорировать вспомогательные каталоги.
+
+## Работа с Codex
+
+1. Заполните `codex_commit_prompt.txt` контекстом задачи и ожидаемым описанием.  
+
+2. Заставьте Node.js прочитать текущий git-статус и дифф:
+   ```bash
+   node scripts/codex-commit.js
+   ```
+3. Рекомендуется создать alias или функцию для повторного запуска:
+   - PowerShell:
+     ```powershell
+     function codex-commit { node C:\work\oneaiguru\AZ_work\ai_flow\scripts\codex-commit.js }
+     ```
+   - Bash/macOS:
+     ```bash
+     echo "alias codex-commit='node /path/to/ai_flow/scripts/codex-commit.js'" >> ~/.zshrc
+     ```
+4. Все вспомогательные скрипты в проекте делаются на Python или JavaScript, чтобы сохранять поддержку Windows и macOS без PowerShell-only трюков.
+   - CLI-команда `python ai_flow.py commit` также использует Codex — если хотите тестировать или подставить свой генератор, задайте `AI_FLOW_CODEX_CMD="python path/to/fake_codex.py"`.

@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ title or "ai_flow_web" }}</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css">
+    <link rel="stylesheet" href="{{ request.url_for('static', path='styles.css') }}">
+  </head>
+  <body>
+    <section class="section hero-shell">
+      <div class="container">
+        <header class="page-head">
+          <div class="level">
+            <div class="level-left">
+              <div>
+                <p class="title is-3">ai_flow_web</p>
+                <p class="subtitle is-6">Server-rendered control panel for ai_flow</p>
+              </div>
+            </div>
+            <div class="level-right">
+            <div class="buttons">
+              <a class="button is-light" href="/">Home</a>
+              <a class="button is-light" href="/init">Init project</a>
+              <a class="button is-light" href="/branch">Create branch</a>
+              <a class="button is-light" href="/step">New step</a>
+              <a class="button is-light" href="/diagram">Diagram</a>
+              <a class="button is-light" href="/commit">Commit</a>
+            </div>
+          </div>
+        </div>
+          <div class="base-root">
+            <span class="tag is-medium is-light">Base root</span>
+            <code>{{ base_dir }}</code>
+          </div>
+        </header>
+
+        {% block content %}{% endblock %}
+      </div>
+    </section>
+    <script src="{{ request.url_for('static', path='project-picker.js') }}"></script>
+  </body>
+</html>

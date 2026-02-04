@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% from "components/project_path_field.html" import project_path_field %}
+
+{% block content %}
+  <div class="panel-card form-card">
+    <h1 class="title is-4">Commit changes</h1>
+    <p class="subtitle is-6">Stage everything and generate the commit message using Codex.</p>
+
+    {% if errors %}
+      <div class="notification is-danger">
+        <ul>
+          {% for err in errors %}
+            <li>{{ err }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+    {% endif %}
+
+    <form method="post" action="/commit/prepare">
+      {{ project_path_field(values.project_path or '', label='Project path', required=true) }}
+
+      <div class="field">
+        <label class="label">Codex prompt</label>
+        <div class="control">
+          <textarea
+            class="textarea prompt-input"
+            name="prompt"
+            rows="8"
+            placeholder="Add extra context (multi-line) for Codex to describe the change."
+          >{{ values.prompt or '' }}</textarea>
+        </div>
+        <p class="help">Optional, multi-line text that accompanies the git status/diff.</p>
+      </div>
+
+      <div class="buttons">
+        <button class="button is-link" type="submit">Continue to confirm</button>
+        <a class="button is-light" href="/">Cancel</a>
+      </div>
+    </form>
+  </div>
+{% endblock %}
