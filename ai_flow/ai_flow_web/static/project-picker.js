@@ -1,14 +1,25 @@
 document.addEventListener("DOMContentLoaded", () => {
-  const toggle = document.querySelector("[data-project-picker-toggle]");
-  const dropdown = document.querySelector("[data-project-picker-dropdown]");
-  const list = document.querySelector("[data-project-picker-list]");
-  const datalist = document.getElementById("project-path-options");
-  const inputs = Array.from(document.querySelectorAll(".project-path-input"));
   const storageKey = "ai_flow_web:selectedProject";
-
-  if (!toggle || !dropdown || !list || !inputs.length) {
+  const fields = Array.from(document.querySelectorAll(".project-path-field"));
+  if (!fields.length) {
     return;
   }
+
+  const inputs = fields
+    .map((field) => field.querySelector(".project-path-input"))
+    .filter(Boolean);
+  const toggles = fields
+    .map((field) => field.querySelector("[data-project-picker-toggle]"))
+    .filter(Boolean);
+  const dropdowns = fields
+    .map((field) => field.querySelector("[data-project-picker-dropdown]"))
+    .filter(Boolean);
+  const lists = fields
+    .map((field) => field.querySelector("[data-project-picker-list]"))
+    .filter(Boolean);
+  const datalists = fields
+    .map((field) => field.querySelector(".project-path-options"))
+    .filter(Boolean);
 
   const storedPath = localStorage.getItem(storageKey);
   inputs.forEach((input) => {
@@ -25,43 +36,42 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 
-  const closeDropdown = () => {
-    dropdown.setAttribute("hidden", "true");
-  };
-
-  toggle.addEventListener("click", () => {
-    if (dropdown.hasAttribute("hidden")) {
-      dropdown.removeAttribute("hidden");
-    } else {
-      closeDropdown();
+  toggles.forEach((toggle, index) => {
+    const dropdown = dropdowns[index];
+    if (!dropdown) {
+      return;
     }
+    toggle.addEventListener("click", () => {
+      dropdowns.forEach((d) => d.setAttribute("hidden", "true"));
+      dropdown.removeAttribute("hidden");
+    });
   });
 
   document.addEventListener("click", (event) => {
-    if (
-      dropdown.hasAttribute("hidden") ||
-      dropdown.contains(event.target) ||
-      event.target === toggle
-    ) {
-      return;
-    }
-    closeDropdown();
+    dropdowns.forEach((dropdown) => {
+      if (dropdown.contains(event.target) || dropdown.hasAttribute("hidden")) {
+        return;
+      }
+      dropdown.setAttribute("hidden", "true");
+    });
   });
 
-  list.addEventListener("click", (event) => {
-    const option = event.target.closest("[data-project-picker-row]");
-    if (!option) {
-      return;
-    }
-    const path = option.dataset.projectPath;
-    if (!path) {
-      return;
-    }
-    inputs.forEach((input) => {
-      input.value = path;
-      input.dispatchEvent(new Event("input", { bubbles: true }));
+  lists.forEach((list) => {
+    list.addEventListener("click", (event) => {
+      const option = event.target.closest("[data-project-picker-row]");
+      if (!option) {
+        return;
+      }
+      const path = option.dataset.projectPath;
+      if (!path) {
+        return;
+      }
+      inputs.forEach((input) => {
+        input.value = path;
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+      });
+      dropdowns.forEach((dropdown) => dropdown.setAttribute("hidden", "true"));
     });
-    closeDropdown();
   });
 
   const formatRow = (project) => {
@@ -78,25 +88,28 @@ document.addEventListener("DOMContentLoaded", () => {
   };
 
   const renderProjects = (items) => {
-    list.innerHTML = "";
-    if (datalist) {
+    lists.forEach((list) => {
+      list.innerHTML = "";
+      if (!items.length) {
+        list.innerHTML =
+          '<p class="is-size-7 has-text-grey">No projects found under the base root.</p>';
+        return;
+      }
+      const fragment = document.createDocumentFragment();
+      items.forEach((item) => {
+        fragment.appendChild(formatRow(item));
+      });
+      list.appendChild(fragment);
+    });
+
+    datalists.forEach((datalist) => {
       datalist.innerHTML = "";
-    }
-    if (!items.length) {
-      list.innerHTML =
-        '<p class="is-size-7 has-text-grey">No projects found under the base root.</p>';
-      return;
-    }
-    const fragment = document.createDocumentFragment();
-    items.forEach((item) => {
-      fragment.appendChild(formatRow(item));
-      if (datalist) {
+      items.forEach((item) => {
         const option = document.createElement("option");
         option.value = item.path;
         datalist.appendChild(option);
-      }
+      });
     });
-    list.appendChild(fragment);
   };
 
   fetch("/projects")
@@ -106,7 +119,9 @@ document.addEventListener("DOMContentLoaded", () => {
       renderProjects(projects);
     })
     .catch(() => {
-      list.innerHTML =
-        '<p class="is-size-7 has-text-danger">Unable to load projects.</p>';
+      lists.forEach((list) => {
+        list.innerHTML =
+          '<p class="is-size-7 has-text-danger">Unable to load projects.</p>';
+      });
     });
 });

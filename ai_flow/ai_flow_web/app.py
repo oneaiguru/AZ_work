@@ -6,7 +6,7 @@ import re
 import subprocess
 import sys
 from datetime import datetime
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from fastapi import FastAPI, Form, Request
 from fastapi.responses import HTMLResponse
@@ -118,18 +118,26 @@ def run_command(func, args: argparse.Namespace) -> Dict[str, str]:
 
 
 def render_form(
-    request: Request, template: str, title: str, values: Dict[str, str], errors: List[str]
+    request: Request,
+    template: str,
+    title: str,
+    values: Dict[str, str],
+    errors: List[str],
+    extra_context: Optional[Dict[str, Any]] = None,
 ) -> HTMLResponse:
+    context: Dict[str, Any] = {
+        "request": request,
+        "title": title,
+        "base_dir": BASE_DIR,
+        "values": values,
+        "errors": errors,
+        "branch_statuses": ai_flow.BRANCH_STATUSES,
+    }
+    if extra_context:
+        context.update(extra_context)
     return templates.TemplateResponse(
         template,
-        {
-            "request": request,
-            "title": title,
-            "base_dir": BASE_DIR,
-            "values": values,
-            "errors": errors,
-            "branch_statuses": ai_flow.BRANCH_STATUSES,
-        },
+        context,
     )
 
 
@@ -180,6 +188,19 @@ def render_result(
             "detail_fields": detail_fields,
             "diagram": diagram.strip() if diagram else "",
         },
+    )
+
+
+def render_time_form(
+    request: Request, values: Dict[str, str], errors: List[str]
+) -> HTMLResponse:
+    return render_form(
+        request,
+        "form_time.html",
+        "Time log",
+        values,
+        errors,
+        extra_context={"activities": ai_flow.TIME_ACTIVITY_CHOICES},
     )
 
 

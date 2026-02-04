@@ -1,0 +1,11 @@
+[run]
+branch = True
+source =
+    ai_flow
+    ai_flow_web
+
+[report]
+show_missing = True
+skip_covered = True
+omit =
+    tests/*

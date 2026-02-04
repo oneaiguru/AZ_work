@@ -1,0 +1,12 @@
+You are Codex. Write a git commit message for this repo.
+
+Input:
+- git status (short)
+- git diff
+
+Rules:
+- Follow repo style: short imperative subject or conventional prefix (feat:, fix:, chore:).
+- Subject line <= 72 chars.
+- Use a short body if needed; wrap at 72 chars.
+- Include tests run at the end as "Tests: <command>" or "Tests: not run (reason)".
+- Output only the commit message text.

@@ -22,7 +22,6 @@ Concise guide for contributing to the AI Flow CLI and its branch/step workflow.
 - Functions/variables use snake_case; constants are UPPER_SNAKE; keep helpers small and side-effect aware.
 - Branch IDs like `A_main`, `B_alt-from-A_002`; step IDs like `001` or `A_001`; templates assume UTF-8 content.
 - Preserve deterministic file layouts and avoid hidden state outside the target project path.
-- Automation helpers should stay in Python or JavaScript/Node and rely on environment variables for configuration, so the repo doesn’t hinge on platform-specific shell files.
 
 ## Testing Guidelines
 - Add unittest cases under `tests/` named `test_*.py`; mirror new CLI behaviors with success and failure expectations.
