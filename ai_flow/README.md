@@ -26,11 +26,21 @@
   ```bash
   python ai_flow.py diagram <project_path> [--output branches/diagram.mmd]
   ```
+- Зарегистрировать 15-минутные слоты времени и получить отчёт:  
+  ```bash
+  python ai_flow.py time start <project_path> --activity coding [--note "..."]
+  python ai_flow.py time pause <project_path>
+  python ai_flow.py time resume <project_path>
+  python ai_flow.py time switch <project_path> --activity reading
+  python ai_flow.py time stop <project_path>
+  python ai_flow.py time report <project_path> [--date YYYY-MM-DD | --week YYYY-WW | --range YYYY-MM-DD,YYYY-MM-DD]
+  ```
 
 ## Структура файлов
 - `project.md` - цель, контекст, ограничения, критерии успеха.
 - `plan.md` - этапы, задачи, активная ветка, статус плана.
 - `journal.md` - один прогон ИИ = одна запись (дата, ветка, шаг, статус, краткий результат).
+- `time_log.md` - событийный журнал: start/pause/resume/switch/stop с activity, branch/step и заметками; служит источником отчёта.
 - `branches/<branch_id>/branch-info.md` - паспорт ветки.
 - `branches/<branch_id>/runs/<step_id>/` - папка шага:
   - `prompt.md` - цель шага, контекст, текст промпта (как отправлен).
@@ -50,6 +60,7 @@
 - `new-step` (`ns`) проверяет чистоту git-работы, нормализует числовые шаги (например: `--step 2` → `A_002`), коммитит шаблоны и фиксирует новый шаг как отдельную ветку `branch_id/step_id`.
 - `switch` (`s`) позволяет переключаться между ветками и шагами (`--step 2` → `branch_id/A_002`), проверяет git-статус и работает независимо от того, на каком step-branch вы сейчас сидите.
 - `commit` — добавляет все изменения в индекс и создаёт коммит с сообщением, сгенерированным через Codex на основе `codex_commit_prompt.txt`, git-статуса/диффа и (опционально) `--prompt`. Можно задать `--message`, чтобы использовать собственный текст, или переопределить команду, установив `AI_FLOW_CODEX_CMD`. В веб-интерфейсе страница `Commit` дополняет эту команду многострочным контекстом, а выбор каталога проекта сохраняется в браузере.
+- `time` — `start`, `pause`, `resume`, `switch`, `stop` и `report` записывают 15-минутные слоты (activity={bb,reading,coding}) в `time_log.md` в корне проекта. Отчёт объединяет соседние блоки, округляет границы (остаток ≥10 мин — вверх, иначе вниз) и подтягивает контекст из journal/prompt/evaluation/git.
 
 ## CLI aliases / короткие команды
 - `init-project` = `init`

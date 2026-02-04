@@ -30,7 +30,9 @@ import re
 import shlex
 import subprocess
 import sys
-from datetime import date, datetime
+from dataclasses import dataclass
+from datetime import date, datetime, timedelta
+from collections import defaultdict
 from typing import Dict, List, Optional, Set, Tuple
 
 BRANCH_STATUSES = ("experiment", "success", "closed")
@@ -491,6 +493,458 @@ def git_config_get(project_path: str, key: str) -> Optional[str]:
 
     return (proc.stdout or "").strip()
 
+
+TIME_LOG_FILENAME = "time_log.md"
+TIME_ACTIVITY_CHOICES = ("bb", "reading", "coding")
+
+
+@dataclass
+class TimeEvent:
+    timestamp: datetime
+    event: str
+    activity: Optional[str]
+    branch: Optional[str]
+    step: Optional[str]
+    note: str
+
+
+def time_log_path(project_path: str) -> str:
+    return os.path.join(project_path, TIME_LOG_FILENAME)
+
+
+def format_time_event(event: TimeEvent) -> str:
+    parts = [event.timestamp.strftime("%Y-%m-%d %H:%M")]
+    fields = [
+        ("event", event.event),
+        ("activity", event.activity),
+        ("branch", event.branch),
+        ("step", event.step),
+        ("note", event.note),
+    ]
+    for key, value in fields:
+        if value is None:
+            continue
+        if isinstance(value, str) and not value.strip():
+            continue
+        parts.append(f"{key}: {value}")
+    return " | ".join(parts)
+
+
+def parse_time_event(line: str) -> Optional[TimeEvent]:
+    clean = line.strip()
+    if not clean:
+        return None
+    pieces = [part.strip() for part in clean.split("|")]
+    try:
+        timestamp = datetime.strptime(pieces[0], "%Y-%m-%d %H:%M")
+    except ValueError:
+        return None
+    data = {"event": None, "activity": None, "branch": None, "step": None, "note": ""}
+    for piece in pieces[1:]:
+        if ":" not in piece:
+            continue
+        key, value = piece.split(":", 1)
+        key = key.strip()
+        value = value.strip()
+        if key in data:
+            data[key] = value
+        elif key == "note" and not data["note"]:
+            data["note"] = value
+    if not data["event"]:
+        return None
+    return TimeEvent(
+        timestamp=timestamp,
+        event=data["event"],
+        activity=data["activity"] or None,
+        branch=data["branch"] or None,
+        step=data["step"] or None,
+        note=data["note"] or "",
+    )
+
+
+def append_time_event(project_path: str, event: TimeEvent) -> None:
+    path = time_log_path(project_path)
+    ensure_dir(os.path.dirname(path))
+    with open(path, "a", encoding="utf-8") as f:
+        f.write(format_time_event(event) + "\n")
+
+
+def load_time_events(project_path: str) -> List[TimeEvent]:
+    path = time_log_path(project_path)
+    if not os.path.isfile(path):
+        return []
+    events: List[TimeEvent] = []
+    with open(path, "r", encoding="utf-8") as f:
+        for line in f:
+            evt = parse_time_event(line)
+            if evt:
+                events.append(evt)
+    return events
+
+
+def get_last_active_event(events: List[TimeEvent]) -> Optional[TimeEvent]:
+    for ev in reversed(events):
+        if ev.event in {"start", "resume", "switch"}:
+            return ev
+        if ev.event in {"pause", "stop"}:
+            return None
+    return None
+
+
+def is_currently_active(events: List[TimeEvent]) -> bool:
+    for ev in reversed(events):
+        if ev.event in {"pause", "stop"}:
+            return False
+        if ev.event in {"start", "resume", "switch"}:
+            return True
+    return False
+
+
+def get_last_event(events: List[TimeEvent]) -> Optional[TimeEvent]:
+    if not events:
+        return None
+    return events[-1]
+
+
+@dataclass
+class WorkInterval:
+    start: datetime
+    end: datetime
+    activity: str
+    branch: Optional[str]
+    step: Optional[str]
+    note: str
+
+
+def round_to_nearest_quarter(dt: datetime) -> datetime:
+    total_minutes = dt.hour * 60 + dt.minute
+    remainder = total_minutes % 15
+    if remainder >= 10:
+        total_minutes += 15 - remainder
+    else:
+        total_minutes -= remainder
+    base = datetime(dt.year, dt.month, dt.day)
+    return base + timedelta(minutes=total_minutes)
+
+
+def align_down_to_quarter(dt: datetime) -> datetime:
+    total_minutes = dt.hour * 60 + dt.minute
+    remainder = total_minutes % 15
+    base = datetime(dt.year, dt.month, dt.day)
+    return base + timedelta(minutes=total_minutes - remainder)
+
+
+def align_up_to_quarter(dt: datetime) -> datetime:
+    total_minutes = dt.hour * 60 + dt.minute
+    remainder = total_minutes % 15
+    base = datetime(dt.year, dt.month, dt.day)
+    if remainder == 0:
+        return base + timedelta(minutes=total_minutes)
+    return base + timedelta(minutes=total_minutes + (15 - remainder))
+
+
+def detect_branch_step(project_path: str) -> Tuple[Optional[str], Optional[str]]:
+    branch_dir = os.path.join(project_path, "branches")
+    branch_id: Optional[str] = None
+    step_id: Optional[str] = None
+    git_branch = git_current_branch(project_path)
+    if git_branch:
+        branch_id = infer_branch_id_from_git_branch(git_branch)
+        if git_branch != branch_id:
+            step_id = git_branch
+        else:
+            candidate_dir = os.path.join(branch_dir, branch_id or "")
+            if branch_id and os.path.isdir(candidate_dir):
+                last_step = get_last_step_id(candidate_dir, branch_id)
+                step_id = last_step
+        return branch_id, step_id
+
+    if os.path.isdir(branch_dir):
+        for name in sorted(os.listdir(branch_dir)):
+            candidate = os.path.join(branch_dir, name)
+            if not os.path.isdir(candidate):
+                continue
+            last_step = get_last_step_id(candidate, name)
+            if last_step:
+                branch_id = name
+                step_id = last_step
+                break
+
+    return branch_id, step_id
+
+
+def build_meta_from_event(
+    event: TimeEvent, fallback: Optional[WorkInterval]
+) -> Optional[Dict[str, Optional[str]]]:
+    activity = event.activity or (fallback.activity if fallback else None)
+    branch = event.branch or (fallback.branch if fallback else None)
+    step = event.step or (fallback.step if fallback else None)
+    note = event.note or (fallback.note if fallback else "")
+    if not activity:
+        return None
+    return {"activity": activity, "branch": branch, "step": step, "note": note}
+
+
+def build_work_intervals(events: List[TimeEvent]) -> List[WorkInterval]:
+    intervals: List[WorkInterval] = []
+    active: Optional[WorkInterval] = None
+    pending_meta: Optional[WorkInterval] = None
+
+    def close_active(ts: datetime) -> None:
+        nonlocal active, pending_meta
+        if active:
+            active.end = ts
+            intervals.append(active)
+            pending_meta = WorkInterval(
+                start=active.start,
+                end=active.end,
+                activity=active.activity,
+                branch=active.branch,
+                step=active.step,
+                note=active.note,
+            )
+            active = None
+
+    for event in events:
+        if event.event in {"start", "resume", "switch"}:
+            close_active(event.timestamp)
+            meta_source = pending_meta if event.event == "resume" else None
+            meta = build_meta_from_event(event, meta_source)
+            if meta is None:
+                meta = build_meta_from_event(event, pending_meta)
+            if meta is None:
+                continue
+            active = WorkInterval(
+                start=event.timestamp,
+                end=event.timestamp,
+                activity=meta["activity"],
+                branch=meta["branch"],
+                step=meta["step"],
+                note=meta["note"],
+            )
+            pending_meta = None
+        elif event.event in {"pause", "stop"}:
+            close_active(event.timestamp)
+
+    if active:
+        active.end = datetime.now()
+        intervals.append(active)
+
+    rounded: List[WorkInterval] = []
+    for interval in intervals:
+        start = round_to_nearest_quarter(interval.start)
+        end = round_to_nearest_quarter(interval.end)
+        if end <= start:
+            continue
+        rounded.append(
+            WorkInterval(
+                start=start,
+                end=end,
+                activity=interval.activity,
+                branch=interval.branch,
+                step=interval.step,
+                note=interval.note,
+            )
+        )
+
+    merged: List[WorkInterval] = []
+    for interval in sorted(rounded, key=lambda iv: iv.start):
+        if merged:
+            last = merged[-1]
+            if (
+                last.end == interval.start
+                and last.activity == interval.activity
+                and last.branch == interval.branch
+                and last.step == interval.step
+                and last.note == interval.note
+            ):
+                last.end = interval.end
+                continue
+        merged.append(interval)
+    return merged
+
+
+def truncate_intervals(
+    intervals: List[WorkInterval], range_start: datetime, range_end: datetime
+) -> List[WorkInterval]:
+    truncated: List[WorkInterval] = []
+    for interval in intervals:
+        if interval.end <= range_start or interval.start >= range_end:
+            continue
+        start = max(interval.start, range_start)
+        end = min(interval.end, range_end)
+        if end <= start:
+            continue
+        truncated.append(
+            WorkInterval(
+                start=start,
+                end=end,
+                activity=interval.activity,
+                branch=interval.branch,
+                step=interval.step,
+                note=interval.note,
+            )
+        )
+    return truncated
+
+
+def merge_adjacent_intervals(intervals: List[WorkInterval]) -> List[WorkInterval]:
+    merged: List[WorkInterval] = []
+    for interval in sorted(intervals, key=lambda iv: iv.start):
+        if merged:
+            last = merged[-1]
+            if (
+                last.end == interval.start
+                and last.activity == interval.activity
+                and last.branch == interval.branch
+                and last.step == interval.step
+                and last.note == interval.note
+            ):
+                last.end = interval.end
+                continue
+        merged.append(interval)
+    return merged
+
+
+def generate_time_report(
+    project_path: str, range_start: datetime, range_end: datetime
+) -> str:
+    events = load_time_events(project_path)
+    if not events:
+        return "Нет записей времени за указанный период."
+
+    intervals = build_work_intervals(events)
+    truncated = truncate_intervals(intervals, range_start, range_end)
+    merged = merge_adjacent_intervals(truncated)
+    if not merged:
+        return "Нет записей времени за указанный период."
+
+    activity_totals: Dict[str, int] = defaultdict(int)
+    branch_totals: Dict[str, int] = defaultdict(int)
+    detail_blocks: List[str] = []
+
+    for interval in merged:
+        duration = int((interval.end - interval.start).total_seconds() / 60)
+        if duration <= 0:
+            continue
+        activity_totals[interval.activity] += duration
+        branch_label = f"{interval.branch or '(none)'} / {interval.step or '(none)'}"
+        branch_totals[branch_label] += duration
+        note_text = enrich_note(project_path, interval)
+        detail_blocks.append(
+            (
+                interval.start,
+                interval.end,
+                duration,
+                interval.activity,
+                branch_label,
+                note_text,
+            )
+        )
+
+    total_minutes = sum(activity_totals.values())
+    header_lines = [
+        f"Отчёт за период {range_start.strftime('%Y-%m-%d %H:%M')} — {range_end.strftime('%Y-%m-%d %H:%M')}",
+        f"Итого: {format_duration(total_minutes)}",
+    ]
+    header_lines.append("По активностям:")
+    for activity, minutes in sorted(activity_totals.items(), key=lambda kv: kv[0]):
+        header_lines.append(f"- {activity}: {format_duration(minutes)}")
+
+    header_lines.append("По веткам и шагам:")
+    for branch_label, minutes in sorted(branch_totals.items(), key=lambda kv: kv[0]):
+        header_lines.append(f"- {branch_label}: {format_duration(minutes)}")
+
+    detail_lines = ["Детали:"]
+    for start, end, duration, activity, branch_label, note_text in sorted(
+        detail_blocks, key=lambda block: block[0]
+    ):
+        detail_lines.append(
+            f"- {start.strftime('%H:%M')}–{end.strftime('%H:%M')} ({format_duration(duration)}) "
+            f"{activity} {branch_label} — {note_text}"
+        )
+
+    return "\n".join(header_lines + [""] + detail_lines)
+
+
+def format_duration(minutes: int) -> str:
+    hours = minutes // 60
+    mins = minutes % 60
+    if hours and mins:
+        return f"{hours}ч {mins}м"
+    if hours:
+        return f"{hours}ч"
+    return f"{mins}м"
+
+
+def find_journal_entry(project_path: str, branch: Optional[str], step: Optional[str]) -> Optional[str]:
+    if not branch or not step:
+        return None
+    journal_path = os.path.join(project_path, "journal.md")
+    if not os.path.isfile(journal_path):
+        return None
+    needle = f"{branch}/{step}"
+    with open(journal_path, "r", encoding="utf-8") as f:
+        for line in f:
+            if needle in line:
+                return line.strip()
+    return None
+
+
+def read_prompt_summary(project_path: str, branch: Optional[str], step: Optional[str]) -> Optional[str]:
+    if not branch or not step:
+        return None
+    prompt_path = os.path.join(project_path, "branches", branch, "runs", step, "prompt.md")
+    if not os.path.isfile(prompt_path):
+        return None
+    lines = []
+    with open(prompt_path, "r", encoding="utf-8") as f:
+        for _ in range(5):
+            line = f.readline().strip()
+            if not line:
+                continue
+            lines.append(line)
+            if len(lines) >= 3:
+                break
+    return " ".join(lines).strip() or None
+
+
+def read_evaluation_summary(project_path: str, branch: Optional[str], step: Optional[str]) -> Optional[str]:
+    if not branch or not step:
+        return None
+    evaluation_path = os.path.join(project_path, "branches", branch, "runs", step, "evaluation.md")
+    if not os.path.isfile(evaluation_path):
+        return None
+    with open(evaluation_path, "r", encoding="utf-8") as f:
+        for line in f:
+            cleaned = line.strip()
+            if cleaned and not cleaned.startswith("#"):
+                return cleaned
+    return None
+
+
+def git_commit_summary(project_path: str, interval: WorkInterval) -> Optional[str]:
+    since = interval.start.isoformat(sep="T")
+    until = interval.end.isoformat(sep="T")
+    output = run_git_capture(project_path, "log", "-1", "--pretty=%B", f"--since={since}", f"--until={until}")
+    if not output:
+        return None
+    return output.strip().splitlines()[0]
+
+
+def enrich_note(project_path: str, interval: WorkInterval) -> str:
+    if interval.note.strip():
+        return interval.note.strip()
+    sources = [
+        find_journal_entry(project_path, interval.branch, interval.step),
+        read_prompt_summary(project_path, interval.branch, interval.step),
+        read_evaluation_summary(project_path, interval.branch, interval.step),
+        git_commit_summary(project_path, interval),
+    ]
+    for candidate in sources:
+        if candidate:
+            return candidate
+    return f"{interval.activity}"
 
 def number_to_letters(index: int) -> str:
     """Преобразовать число в буквенный код A, B, ..., Z, AA, AB, ..."""
@@ -1185,6 +1639,157 @@ def cmd_switch(args: argparse.Namespace) -> None:
     print(f"[OK]   Переключились на git-ветку: {target_branch}")
 
 
+def ensure_time_project(project_path: str) -> str:
+    abs_path = os.path.abspath(project_path or ".")
+    if not os.path.isdir(abs_path):
+        print(f"[ERR] Путь не найден или это не каталог: {abs_path}", file=sys.stderr)
+        sys.exit(1)
+    return abs_path
+
+
+def cmd_time_start(args: argparse.Namespace) -> None:
+    project_path = ensure_time_project(args.project_path)
+    events = load_time_events(project_path)
+    if is_currently_active(events):
+        print("[ERR] Сессия уже активна. Остановите её перед новым запуском.", file=sys.stderr)
+        sys.exit(1)
+    branch, step = detect_branch_step(project_path)
+    event = TimeEvent(
+        timestamp=datetime.now(),
+        event="start",
+        activity=args.activity,
+        branch=branch,
+        step=step,
+        note=(args.note or "").strip(),
+    )
+    append_time_event(project_path, event)
+    print(f"[OK]   Начата работа {args.activity} (branch={branch or 'текущая'}, step={step or 'текущий'})")
+
+
+def cmd_time_pause(args: argparse.Namespace) -> None:
+    project_path = ensure_time_project(args.project_path)
+    events = load_time_events(project_path)
+    if not is_currently_active(events):
+        print("[ERR] Сессия не активна, нечего приостанавливать.", file=sys.stderr)
+        sys.exit(1)
+    event = TimeEvent(
+        timestamp=datetime.now(),
+        event="pause",
+        activity=None,
+        branch=None,
+        step=None,
+        note=(args.note or "").strip(),
+    )
+    append_time_event(project_path, event)
+    print("[OK]   Работа приостановлена.")
+
+
+def cmd_time_resume(args: argparse.Namespace) -> None:
+    project_path = ensure_time_project(args.project_path)
+    events = load_time_events(project_path)
+    last = get_last_event(events)
+    if not last or last.event != "pause":
+        print("[ERR] Нет паузы для продолжения.", file=sys.stderr)
+        sys.exit(1)
+    branch, step = detect_branch_step(project_path)
+    event = TimeEvent(
+        timestamp=datetime.now(),
+        event="resume",
+        activity=None,
+        branch=branch,
+        step=step,
+        note=(args.note or "").strip(),
+    )
+    append_time_event(project_path, event)
+    print("[OK]   Продолжили работу.")
+
+
+def cmd_time_switch(args: argparse.Namespace) -> None:
+    project_path = ensure_time_project(args.project_path)
+    events = load_time_events(project_path)
+    if not is_currently_active(events):
+        print("[ERR] Сессия не активна, используйте start перед switch.", file=sys.stderr)
+        sys.exit(1)
+    branch, step = detect_branch_step(project_path)
+    event = TimeEvent(
+        timestamp=datetime.now(),
+        event="switch",
+        activity=args.activity,
+        branch=branch,
+        step=step,
+        note=(args.note or "").strip(),
+    )
+    append_time_event(project_path, event)
+    print(f"[OK]   Переключились на {args.activity}.")
+
+
+def cmd_time_stop(args: argparse.Namespace) -> None:
+    project_path = ensure_time_project(args.project_path)
+    events = load_time_events(project_path)
+    if not is_currently_active(events):
+        print("[ERR] Сессия не активна, нечего завершать.", file=sys.stderr)
+        sys.exit(1)
+    event = TimeEvent(
+        timestamp=datetime.now(),
+        event="stop",
+        activity=None,
+        branch=None,
+        step=None,
+        note=(args.note or "").strip(),
+    )
+    append_time_event(project_path, event)
+    print("[OK]   Работа завершена.")
+
+
+def parse_time_range_args(args: argparse.Namespace) -> Tuple[datetime, datetime]:
+    selected = [opt for opt in ("date", "week", "range") if getattr(args, opt)]
+    if len(selected) > 1:
+        print("[ERR] Укажите только одну опцию: --date, --week или --range.", file=sys.stderr)
+        sys.exit(1)
+    now = datetime.now()
+    if args.date:
+        try:
+            start = datetime.strptime(args.date, "%Y-%m-%d")
+        except ValueError:
+            print("[ERR] Дата должна быть в формате YYYY-MM-DD.", file=sys.stderr)
+            sys.exit(1)
+        end = start + timedelta(days=1)
+    elif args.week:
+        try:
+            year, week = args.week.split("-")
+            start = datetime.fromisocalendar(int(year), int(week), 1)
+        except Exception:
+            print("[ERR] Неверный формат недели. Используйте YYYY-WW.", file=sys.stderr)
+            sys.exit(1)
+        end = start + timedelta(days=7)
+    elif args.range:
+        parts = args.range.split(",")
+        if len(parts) != 2:
+            print("[ERR] Диапазон должен быть в формате YYYY-MM-DD,YYYY-MM-DD.", file=sys.stderr)
+            sys.exit(1)
+        try:
+            start = datetime.strptime(parts[0].strip(), "%Y-%m-%d")
+            end = datetime.strptime(parts[1].strip(), "%Y-%m-%d")
+        except ValueError:
+            print("[ERR] Диапазон должен содержать даты в формате YYYY-MM-DD.", file=sys.stderr)
+            sys.exit(1)
+        if end <= start:
+            print("[ERR] Конец диапазона должен быть позже начала.", file=sys.stderr)
+            sys.exit(1)
+        end = end + timedelta(days=1)
+    else:
+        start = datetime(now.year, now.month, now.day)
+        end = start + timedelta(days=1)
+    return align_down_to_quarter(start), align_up_to_quarter(end)
+
+
+def cmd_time_report(args: argparse.Namespace) -> None:
+    project_path = ensure_time_project(args.project_path)
+    report_start, report_end = parse_time_range_args(args)
+    report = generate_time_report(project_path, report_start, report_end)
+    print(report)
+
+
 def cmd_generate_mermaid(args: argparse.Namespace) -> None:
     project_path = args.project_path
     branches_root = os.path.join(project_path, "branches")
@@ -1349,6 +1954,92 @@ def build_arg_parser() -> argparse.ArgumentParser:
              "Используется для автозаполнения полей в prompt.md.",
     )
     p_step.set_defaults(func=cmd_new_step)
+
+    # time tracking
+    p_time = subparsers.add_parser(
+        "time",
+        help="Записать и отчитаться о времени (15-мин слоты).",
+    )
+    p_time.set_defaults(func=lambda args: p_time.print_help())
+    time_sub = p_time.add_subparsers(dest="time_command")
+
+    p_time_start = time_sub.add_parser("start", help="Начать сессию работы.")
+    p_time_start.add_argument(
+        "project_path",
+        nargs="?",
+        default=".",
+        help="Каталог проекта (по умолчанию — текущий).",
+    )
+    p_time_start.add_argument(
+        "--activity",
+        choices=TIME_ACTIVITY_CHOICES,
+        help="Тип активности: bb, reading, coding.",
+        required=True,
+    )
+    p_time_start.add_argument("--note", help="Краткая заметка для интервала.")
+    p_time_start.set_defaults(func=cmd_time_start)
+
+    p_time_pause = time_sub.add_parser("pause", help="Поставить работу на паузу.")
+    p_time_pause.add_argument(
+        "project_path",
+        nargs="?",
+        default=".",
+        help="Каталог проекта.",
+    )
+    p_time_pause.add_argument("--note", help="Причина паузы.")
+    p_time_pause.set_defaults(func=cmd_time_pause)
+
+    p_time_resume = time_sub.add_parser("resume", help="Продолжить работу после паузы.")
+    p_time_resume.add_argument(
+        "project_path",
+        nargs="?",
+        default=".",
+        help="Каталог проекта.",
+    )
+    p_time_resume.add_argument("--note", help="Комментарий к возобновлению.")
+    p_time_resume.set_defaults(func=cmd_time_resume)
+
+    p_time_switch = time_sub.add_parser(
+        "switch", help="Переключиться на другую активность в рамках сессии."
+    )
+    p_time_switch.add_argument(
+        "project_path",
+        nargs="?",
+        default=".",
+        help="Каталог проекта.",
+    )
+    p_time_switch.add_argument(
+        "--activity",
+        choices=TIME_ACTIVITY_CHOICES,
+        help="Новая активность.",
+        required=True,
+    )
+    p_time_switch.add_argument("--note", help="Комментарий к переключению.")
+    p_time_switch.set_defaults(func=cmd_time_switch)
+
+    p_time_stop = time_sub.add_parser("stop", help="Завершить текущую работу.")
+    p_time_stop.add_argument(
+        "project_path",
+        nargs="?",
+        default=".",
+        help="Каталог проекта.",
+    )
+    p_time_stop.add_argument("--note", help="Комментарий к завершению.")
+    p_time_stop.set_defaults(func=cmd_time_stop)
+
+    p_time_report = time_sub.add_parser("report", help="Сформировать отчёт о времени.")
+    p_time_report.add_argument(
+        "project_path",
+        nargs="?",
+        default=".",
+        help="Каталог проекта.",
+    )
+    p_time_report.add_argument("--date", help="Отчёт за дату YYYY-MM-DD.")
+    p_time_report.add_argument("--week", help="Отчёт за ISO-неделю YYYY-WW.")
+    p_time_report.add_argument(
+        "--range", help="Диапазон дат YYYY-MM-DD,YYYY-MM-DD."
+    )
+    p_time_report.set_defaults(func=cmd_time_report)
 
     # commit
     p_commit = subparsers.add_parser(
