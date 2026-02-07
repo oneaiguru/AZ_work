@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>AI Flow Web UI</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <main>
+      <header class="hero">
+        <h1>AI Flow Web</h1>
+        <p>Сосредоточьтесь на проектах, логах времени и отчётах, переключаясь между экранами.</p>
+      </header>
+
+      <nav class="screen-nav" aria-label="Навигация по экранам">
+        <button class="screen-nav__button active" data-screen-btn="overview">Обзор</button>
+        <button class="screen-nav__button" data-screen-btn="init">Init</button>
+        <button class="screen-nav__button" data-screen-btn="time">Время</button>
+        <button class="screen-nav__button" data-screen-btn="projects">Проекты</button>
+        <button class="screen-nav__button" data-screen-btn="branch">Ветки</button>
+        <button class="screen-nav__button" data-screen-btn="diagram">Диаграмма</button>
+      </nav>
+
+      <section class="screen active" data-screen="overview">
+        <h2>Обзор</h2>
+        <div class="project-picker">
+          <label>
+            Проект
+            <select class="project-dropdown"></select>
+          </label>
+          <div class="project-picker__manual">
+            <input class="project-path-input" type="text" placeholder="Или введите путь..." />
+            <button class="project-path-save" type="button">Сохранить</button>
+          </div>
+          <p class="project-picker__current">Выбран: <span class="project-picker__current-value">—</span></p>
+        </div>
+        <p class="overview__status">Текущий проект: <span id="overview-selected">—</span></p>
+        <div class="overview__actions">
+          <button class="screen-nav__button" type="button" data-screen-btn="init">Создать</button>
+          <button class="screen-nav__button" type="button" data-screen-btn="time">Лог времени</button>
+          <button class="screen-nav__button" type="button" data-screen-btn="projects">Проекты</button>
+        </div>
+      </section>
+
+      <section class="screen" data-screen="init">
+        <h2>Init проекта</h2>
+        <div class="project-picker">
+          <label>
+            Проект
+            <select class="project-dropdown"></select>
+          </label>
+          <div class="project-picker__manual">
+            <input class="project-path-input" type="text" placeholder="Или введите путь для нового проекта" />
+            <button class="project-path-save" type="button">Сохранить</button>
+          </div>
+          <p class="project-picker__current">Выбран: <span class="project-picker__current-value">—</span></p>
+        </div>
+        <form id="init-form">
+          <label>
+            Путь проекта
+            <input name="path" type="text" required placeholder="my-project" />
+          </label>
+          <label>
+            Название
+            <input name="title" type="text" placeholder="AI Flow Demo" />
+          </label>
+          <label>
+            Дата
+            <input name="date" type="date" />
+          </label>
+          <button type="submit">Создать</button>
+        </form>
+      </section>
+
+      <section class="screen" data-screen="time">
+        <h2>Отслеживание времени</h2>
+        <div class="project-picker">
+          <label>
+            Проект
+            <select class="project-dropdown"></select>
+          </label>
+          <div class="project-picker__manual">
+            <input class="project-path-input" type="text" placeholder="Или введите путь" />
+            <button class="project-path-save" type="button">Сохранить</button>
+          </div>
+          <p class="project-picker__current">Выбран: <span class="project-picker__current-value">—</span></p>
+        </div>
+        <form id="time-action-form">
+          <label>
+            Активность
+            <select name="activity">
+              <option value="coding">coding</option>
+              <option value="reading">reading</option>
+              <option value="AI">AI</option>
+            </select>
+          </label>
+          <label>
+            Заметка
+            <input name="note" type="text" placeholder="Встреча, эксперимент..." />
+          </label>
+          <div class="buttons">
+            <button type="button" data-time-action="start">Start</button>
+            <button type="button" data-time-action="stop">Stop</button>
+          </div>
+        </form>
+        <form id="time-report-form">
+          <label>
+            Дата
+            <input name="date" type="date" />
+          </label>
+          <button type="submit">Отчёт</button>
+        </form>
+      </section>
+
+      <section class="screen" data-screen="branch">
+        <h2>Ветки и шаги</h2>
+        <div class="project-picker">
+          <label>
+            Проект
+            <select class="project-dropdown"></select>
+          </label>
+          <div class="project-picker__manual">
+            <input class="project-path-input" type="text" placeholder="Или введите путь" />
+            <button class="project-path-save" type="button">Сохранить</button>
+          </div>
+          <p class="project-picker__current">Выбран: <span class="project-picker__current-value">—</span></p>
+        </div>
+        <form id="branch-form" class="form-card">
+          <h3>Создать ветку</h3>
+          <label>
+            Branch ID
+            <input name="branch_id" type="text" placeholder="A_main" />
+          </label>
+          <label>
+            Название
+            <input name="title" type="text" placeholder="Основная ветка" />
+          </label>
+          <label>
+            Parent
+            <input name="parent" type="text" placeholder="A" />
+          </label>
+          <label>
+            From step
+            <input name="from_step" type="text" placeholder="A_002" />
+          </label>
+          <label>
+            Статус
+            <select name="status">
+              <option value="experiment">experiment</option>
+              <option value="success">success</option>
+              <option value="closed">closed</option>
+            </select>
+          </label>
+          <label>
+            Причина закрытия
+            <input name="closed_reason" type="text" placeholder="При закрытии" />
+          </label>
+          <label class="checkbox">
+            <input name="skip_git_check" type="checkbox" />
+            Пропустить проверку git
+          </label>
+          <button type="submit">Создать ветку</button>
+        </form>
+        <form id="new-step-form" class="form-card">
+          <h3>Новый шаг</h3>
+          <label>
+            Branch ID
+            <input name="branch_id" type="text" placeholder="A_main" />
+          </label>
+          <label>
+            Step ID
+            <input name="step_id" type="text" placeholder="A_002" />
+          </label>
+          <label>
+            From step
+            <input name="from_step" type="text" placeholder="A_001" />
+          </label>
+          <label class="checkbox">
+            <input name="skip_git_check" type="checkbox" />
+            Пропустить проверку git
+          </label>
+          <button type="submit">Создать шаг</button>
+        </form>
+        <form id="switch-form" class="form-card">
+          <h3>Switch ветки</h3>
+          <label>
+            Branch ID
+            <input name="branch_id" type="text" placeholder="A_main" />
+          </label>
+          <label>
+            Step
+            <input name="step" type="text" placeholder="A_002" />
+          </label>
+          <label class="checkbox">
+            <input name="skip_git_check" type="checkbox" />
+            Пропустить проверку git
+          </label>
+          <button type="submit">Switch</button>
+        </form>
+      </section>
+
+      <section class="screen" data-screen="diagram">
+        <h2>Диаграмма</h2>
+        <div class="project-picker">
+          <label>
+            Проект
+            <select class="project-dropdown"></select>
+          </label>
+          <div class="project-picker__manual">
+            <input class="project-path-input" type="text" placeholder="Или введите путь" />
+            <button class="project-path-save" type="button">Сохранить</button>
+          </div>
+          <p class="project-picker__current">Выбран: <span class="project-picker__current-value">—</span></p>
+        </div>
+        <form id="diagram-form" class="form-card">
+          <label>
+            Сохранить в (опционально)
+            <input name="output" type="text" placeholder="branches/diagram.mmd" />
+          </label>
+          <button type="submit">Сгенерировать диаграмму</button>
+        </form>
+        <pre id="diagram-result" class="diagram-output"></pre>
+      </section>
+
+      <section class="screen" data-screen="projects">
+        <h2>Каталог проектов</h2>
+        <div class="project-picker">
+          <label>
+            Проект
+            <select class="project-dropdown"></select>
+          </label>
+          <div class="project-picker__manual">
+            <input class="project-path-input" type="text" placeholder="Или введите путь" />
+            <button class="project-path-save" type="button">Сохранить</button>
+          </div>
+          <p class="project-picker__current">Выбран: <span class="project-picker__current-value">—</span></p>
+        </div>
+        <div class="projects-panel">
+          <button id="refresh-projects" type="button">Обновить список</button>
+          <ul id="projects-list"></ul>
+        </div>
+      </section>
+
+      <section class="panel logs-panel">
+        <h2>Логи</h2>
+        <div id="messages"></div>
+      </section>
+    </main>
+
+    <script type="module" src="/static/app.js"></script>
+  </body>
+</html>

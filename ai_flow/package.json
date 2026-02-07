@@ -1,18 +1,20 @@
-﻿{
+{
   "name": "ai-flow",
   "version": "0.1.0",
   "description": "TypeScript implementation of AI Flow CLI for managing branch/step projects.",
-  "main": "dist/cli.js",
-  "types": "dist/cli.d.ts",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "bin": {
-    "ai-flow-ts": "dist/cli.js"
+    "ai-flow": "dist/index.js"
   },
   "scripts": {
     "build": "tsc",
-    "dev": "ts-node src/cli.ts",
-    "start": "node dist/cli.js",
+    "dev": "ts-node src/index.ts",
+    "start": "node dist/index.js",
+    "cli": "node dist/index.js",
+    "web": "node dist/index.js web",
     "watch": "tsc --watch",
-    "test": "npm run build && node --test tests/cli.test.js"
+    "test": "npm run build && node --test tests/cli.test.js tests/web.test.js"
   },
   "files": [
     "dist",
@@ -20,7 +22,9 @@
     "project.md"
   ],
   "dependencies": {
-    "commander": "^11.1.0"
+    "commander": "^11.1.0",
+    "fastify": "^4.29.0",
+    "@fastify/static": "^7.0.4"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
