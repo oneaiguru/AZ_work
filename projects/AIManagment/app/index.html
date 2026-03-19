@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AIManagment</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="page-shell">
+      <header class="hero">
+        <div>
+          <p class="eyebrow">AI workspace</p>
+          <h1>AIManagment</h1>
+          <p class="hero__text">
+            Локальный MVP для контроля AI-задач, моделей и командного прогресса.
+          </p>
+        </div>
+        <button type="button" class="secondary-button" data-reset-seed>
+          Восстановить демо-данные
+        </button>
+      </header>
+
+      <section class="stats-grid">
+        <article class="stat-card">
+          <span>Всего задач</span>
+          <strong data-stat="total">0</strong>
+        </article>
+        <article class="stat-card">
+          <span>В работе</span>
+          <strong data-stat="inFlight">0</strong>
+        </article>
+        <article class="stat-card">
+          <span>Завершено</span>
+          <strong data-stat="completed">0</strong>
+        </article>
+        <article class="stat-card">
+          <span>Critical</span>
+          <strong data-stat="critical">0</strong>
+        </article>
+        <article class="stat-card stat-card--wide">
+          <span>Самая используемая модель</span>
+          <strong data-stat="topModel">—</strong>
+        </article>
+      </section>
+
+      <main class="workspace-grid">
+        <aside class="panel panel-form">
+          <div class="panel__header">
+            <h2>Новая AI-задача</h2>
+            <p>Добавьте инициативу, владельца и модель.</p>
+          </div>
+
+          <form id="taskForm" class="task-form">
+            <label>
+              Название
+              <input type="text" name="title" placeholder="Например, AI-ассистент для продаж" required />
+            </label>
+
+            <label>
+              Владелец
+              <input type="text" name="owner" placeholder="Имя владельца" />
+            </label>
+
+            <label>
+              Модель
+              <input type="text" name="model" placeholder="GPT-4.1 / Claude / Gemini" />
+            </label>
+
+            <div class="form-row">
+              <label>
+                Приоритет
+                <select name="priority">
+                  <option value="low">low</option>
+                  <option value="medium" selected>medium</option>
+                  <option value="high">high</option>
+                  <option value="critical">critical</option>
+                </select>
+              </label>
+
+              <label>
+                Статус
+                <select name="status">
+                  <option value="backlog" selected>backlog</option>
+                  <option value="in_progress">in_progress</option>
+                  <option value="review">review</option>
+                  <option value="done">done</option>
+                </select>
+              </label>
+            </div>
+
+            <label>
+              Описание
+              <textarea name="description" rows="5" placeholder="Какую ценность даёт задача?"></textarea>
+            </label>
+
+            <button type="submit" class="primary-button">Добавить задачу</button>
+          </form>
+        </aside>
+
+        <section class="panel panel-board">
+          <div class="panel__header panel__header--row">
+            <div>
+              <h2>AI board</h2>
+              <p>Найдено карточек: <strong data-total-filtered>0</strong></p>
+            </div>
+
+            <div class="filters">
+              <input id="search" type="search" placeholder="Поиск по названию, владельцу или модели" />
+              <select id="statusFilter"></select>
+              <select id="priorityFilter"></select>
+            </div>
+          </div>
+
+          <div class="board" data-board></div>
+        </section>
+      </main>
+    </div>
+
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>
