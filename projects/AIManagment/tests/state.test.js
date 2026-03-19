@@ -6,8 +6,10 @@ import {
   advanceTask,
   computeStats,
   createTask,
+  cyclePriority,
   filterTasks,
   normalizeTask,
+  updateTask,
 } from '../app/state.js';
 
 test('normalizeTask fills defaults for missing values', () => {
@@ -33,6 +35,24 @@ test('createTask prepends a new task to the list', () => {
 
   assert.equal(tasks.length, DEFAULT_TASKS.length + 1);
   assert.equal(tasks[0].title, 'Запустить AI triage');
+});
+
+test('updateTask preserves identifiers and changes editable fields', () => {
+  const tasks = updateTask(DEFAULT_TASKS, 'task-001', {
+    title: 'Обновлённая задача',
+    owner: 'Ira',
+    model: 'GPT-4o',
+    priority: 'critical',
+    status: 'review',
+    description: 'Новое описание',
+  });
+
+  const updated = tasks.find((task) => task.id === 'task-001');
+  assert.equal(updated.id, 'task-001');
+  assert.equal(updated.createdAt, '2026-03-19T08:00:00.000Z');
+  assert.equal(updated.title, 'Обновлённая задача');
+  assert.equal(updated.priority, 'critical');
+  assert.equal(updated.status, 'review');
 });
 
 test('filterTasks applies status, priority and query filters together', () => {
@@ -75,4 +95,11 @@ test('advanceTask moves a card to the next workflow status', () => {
   const movedTask = tasks.find((task) => task.id === 'task-001');
 
   assert.equal(movedTask.status, 'review');
+});
+
+test('cyclePriority moves a card to the next priority level', () => {
+  const tasks = cyclePriority(DEFAULT_TASKS, 'task-003');
+  const movedTask = tasks.find((task) => task.id === 'task-003');
+
+  assert.equal(movedTask.priority, 'high');
 });

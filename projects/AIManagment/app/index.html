@@ -47,11 +47,13 @@
       <main class="workspace-grid">
         <aside class="panel panel-form">
           <div class="panel__header">
-            <h2>Новая AI-задача</h2>
-            <p>Добавьте инициативу, владельца и модель.</p>
+            <h2 data-form-title>Новая AI-задача</h2>
+            <p data-form-subtitle>Добавьте инициативу, владельца и модель.</p>
           </div>
 
           <form id="taskForm" class="task-form">
+            <input id="taskId" type="hidden" name="taskId" />
+
             <label>
               Название
               <input type="text" name="title" placeholder="Например, AI-ассистент для продаж" required />
@@ -94,7 +96,10 @@
               <textarea name="description" rows="5" placeholder="Какую ценность даёт задача?"></textarea>
             </label>
 
-            <button type="submit" class="primary-button">Добавить задачу</button>
+            <div class="form-actions">
+              <button type="submit" class="primary-button" data-submit-label>Добавить задачу</button>
+              <button type="button" class="secondary-button" data-cancel-edit hidden>Отменить редактирование</button>
+            </div>
           </form>
         </aside>
 

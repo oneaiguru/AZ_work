@@ -5,11 +5,13 @@ import {
   advanceTask,
   computeStats,
   createTask,
+  cyclePriority,
   deleteTask,
   filterTasks,
   groupTasks,
   loadTasks,
   saveTasks,
+  updateTask,
 } from './state.js';
 
 const state = {
@@ -19,6 +21,7 @@ const state = {
     status: 'all',
     priority: 'all',
   },
+  editingTaskId: '',
 };
 
 const elements = {
@@ -34,6 +37,11 @@ const elements = {
   form: document.querySelector('#taskForm'),
   seedButton: document.querySelector('[data-reset-seed]'),
   totalFiltered: document.querySelector('[data-total-filtered]'),
+  formTitle: document.querySelector('[data-form-title]'),
+  formSubtitle: document.querySelector('[data-form-subtitle]'),
+  submitButton: document.querySelector('[data-submit-label]'),
+  cancelButton: document.querySelector('[data-cancel-edit]'),
+  taskIdInput: document.querySelector('#taskId'),
 };
 
 function formatDate(value) {
@@ -43,6 +51,36 @@ function formatDate(value) {
     hour: '2-digit',
     minute: '2-digit',
   }).format(new Date(value));
+}
+
+function syncFormMode() {
+  const isEditing = Boolean(state.editingTaskId);
+  elements.formTitle.textContent = isEditing ? 'Редактирование AI-задачи' : 'Новая AI-задача';
+  elements.formSubtitle.textContent = isEditing
+    ? 'Обновите поля и сохраните изменения.'
+    : 'Добавьте инициативу, владельца и модель.';
+  elements.submitButton.textContent = isEditing ? 'Сохранить изменения' : 'Добавить задачу';
+  elements.cancelButton.hidden = !isEditing;
+  elements.taskIdInput.value = state.editingTaskId;
+}
+
+function resetForm() {
+  state.editingTaskId = '';
+  elements.form.reset();
+  syncFormMode();
+}
+
+function fillForm(task) {
+  state.editingTaskId = task.id;
+  elements.taskIdInput.value = task.id;
+  elements.form.elements.title.value = task.title;
+  elements.form.elements.owner.value = task.owner;
+  elements.form.elements.model.value = task.model;
+  elements.form.elements.priority.value = task.priority;
+  elements.form.elements.status.value = task.status;
+  elements.form.elements.description.value = task.description;
+  syncFormMode();
+  elements.form.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 function renderStats() {
@@ -68,6 +106,8 @@ function taskCard(task) {
       <div class="task-card__footer">
         <span>Создано: ${formatDate(task.createdAt)}</span>
         <div class="task-card__actions">
+          <button type="button" data-action="edit" data-task-id="${task.id}">Редактировать</button>
+          <button type="button" data-action="priority" data-task-id="${task.id}">Приоритет +</button>
           <button type="button" data-action="advance" data-task-id="${task.id}">Следующий статус</button>
           <button type="button" data-action="delete" data-task-id="${task.id}" class="ghost-danger">Удалить</button>
         </div>
@@ -100,6 +140,7 @@ function renderBoard() {
 function render() {
   renderStats();
   renderBoard();
+  syncFormMode();
 }
 
 function updateAndRender(tasks) {
@@ -112,8 +153,16 @@ function handleSubmit(event) {
   event.preventDefault();
   const formData = new FormData(elements.form);
   const taskInput = Object.fromEntries(formData.entries());
+  const taskId = taskInput.taskId;
+
+  if (taskId) {
+    updateAndRender(updateTask(state.tasks, taskId, taskInput));
+    resetForm();
+    return;
+  }
+
   updateAndRender(createTask(state.tasks, taskInput));
-  elements.form.reset();
+  resetForm();
 }
 
 function handleFilters() {
@@ -135,13 +184,31 @@ function handleBoardClick(event) {
     return;
   }
 
+  if (action === 'priority') {
+    updateAndRender(cyclePriority(state.tasks, taskId));
+    return;
+  }
+
+  if (action === 'edit') {
+    const task = state.tasks.find((item) => item.id === taskId);
+    if (task) {
+      fillForm(task);
+    }
+    return;
+  }
+
   if (action === 'delete') {
     updateAndRender(deleteTask(state.tasks, taskId));
+    if (state.editingTaskId === taskId) {
+      resetForm();
+    }
   }
 }
 
 function resetSeed() {
+  state.editingTaskId = '';
   updateAndRender(DEFAULT_TASKS);
+  resetForm();
 }
 
 function hydrateSelects() {
@@ -156,8 +223,10 @@ function bindEvents() {
   elements.priority.addEventListener('change', handleFilters);
   elements.board.addEventListener('click', handleBoardClick);
   elements.seedButton.addEventListener('click', resetSeed);
+  elements.cancelButton.addEventListener('click', resetForm);
 }
 
 hydrateSelects();
+resetForm();
 bindEvents();
 render();

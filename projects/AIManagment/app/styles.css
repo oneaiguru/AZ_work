@@ -168,6 +168,13 @@ textarea {
   gap: 12px;
 }
 
+
+.form-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
 .primary-button,
 .secondary-button,
 .task-card__actions button {

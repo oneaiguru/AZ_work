@@ -70,6 +70,21 @@ export function createTask(tasks, input) {
   return [normalizeTask(input), ...tasks];
 }
 
+export function updateTask(tasks, taskId, updates) {
+  return tasks.map((task) => {
+    if (task.id !== taskId) {
+      return task;
+    }
+
+    return normalizeTask({
+      ...task,
+      ...updates,
+      id: task.id,
+      createdAt: task.createdAt,
+    });
+  });
+}
+
 export function filterTasks(tasks, filters = {}) {
   const query = sanitizeText(filters.query).toLowerCase();
   return tasks.filter((task) => {
@@ -119,6 +134,18 @@ export function advanceTask(tasks, taskId) {
     const currentIndex = STATUSES.findIndex((status) => status.id === task.status);
     const nextIndex = Math.min(currentIndex + 1, STATUSES.length - 1);
     return { ...task, status: STATUSES[nextIndex].id };
+  });
+}
+
+export function cyclePriority(tasks, taskId) {
+  return tasks.map((task) => {
+    if (task.id !== taskId) {
+      return task;
+    }
+
+    const currentIndex = PRIORITIES.indexOf(task.priority);
+    const nextIndex = (currentIndex + 1) % PRIORITIES.length;
+    return { ...task, priority: PRIORITIES[nextIndex] };
   });
 }
 
