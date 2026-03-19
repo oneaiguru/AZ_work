@@ -42,6 +42,7 @@ const elements = {
   submitButton: document.querySelector('[data-submit-label]'),
   cancelButton: document.querySelector('[data-cancel-edit]'),
   taskIdInput: document.querySelector('#taskId'),
+  statusTabs: document.querySelector('[data-status-tabs]'),
 };
 
 function formatDate(value) {
@@ -137,9 +138,34 @@ function renderBoard() {
   }).join('');
 }
 
+function renderStatusTabs() {
+  const counts = groupTasks(filterTasks(state.tasks, { ...state.filters, status: 'all' }));
+  const options = [
+    { id: 'all', label: 'Все', count: Object.values(counts).reduce((sum, items) => sum + items.length, 0) },
+    ...STATUSES.map((status) => ({
+      id: status.id,
+      label: status.label,
+      count: counts[status.id]?.length ?? 0,
+    })),
+  ];
+
+  elements.statusTabs.innerHTML = options.map((option) => `
+    <button
+      type="button"
+      class="status-tab ${state.filters.status === option.id ? 'status-tab--active' : ''}"
+      data-status-tab="${option.id}"
+      aria-pressed="${state.filters.status === option.id}"
+    >
+      <span>${option.label}</span>
+      <strong>${option.count}</strong>
+    </button>
+  `).join('');
+}
+
 function render() {
   renderStats();
   renderBoard();
+  renderStatusTabs();
   syncFormMode();
 }
 
@@ -170,6 +196,7 @@ function handleFilters() {
   state.filters.status = elements.status.value;
   state.filters.priority = elements.priority.value;
   renderBoard();
+  renderStatusTabs();
 }
 
 function handleBoardClick(event) {
@@ -205,6 +232,18 @@ function handleBoardClick(event) {
   }
 }
 
+function handleStatusTabsClick(event) {
+  const button = event.target.closest('button[data-status-tab]');
+  if (!button) {
+    return;
+  }
+
+  state.filters.status = button.dataset.statusTab;
+  elements.status.value = state.filters.status;
+  renderBoard();
+  renderStatusTabs();
+}
+
 function resetSeed() {
   state.editingTaskId = '';
   updateAndRender(DEFAULT_TASKS);
@@ -224,6 +263,7 @@ function bindEvents() {
   elements.board.addEventListener('click', handleBoardClick);
   elements.seedButton.addEventListener('click', resetSeed);
   elements.cancelButton.addEventListener('click', resetForm);
+  elements.statusTabs.addEventListener('click', handleStatusTabsClick);
 }
 
 hydrateSelects();

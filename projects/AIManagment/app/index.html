@@ -110,10 +110,13 @@
               <p>Найдено карточек: <strong data-total-filtered>0</strong></p>
             </div>
 
-            <div class="filters">
-              <input id="search" type="search" placeholder="Поиск по названию, владельцу или модели" />
-              <select id="statusFilter"></select>
-              <select id="priorityFilter"></select>
+            <div class="board-toolbar">
+              <div class="filters">
+                <input id="search" type="search" placeholder="Поиск по названию, владельцу или модели" />
+                <select id="statusFilter" aria-label="Фильтр по статусу"></select>
+                <select id="priorityFilter" aria-label="Фильтр по приоритету"></select>
+              </div>
+              <div class="status-tabs" data-status-tabs aria-label="Быстрый выбор статуса"></div>
             </div>
           </div>
 
