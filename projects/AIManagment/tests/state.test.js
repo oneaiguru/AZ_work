@@ -8,6 +8,7 @@ import {
   createTask,
   cyclePriority,
   filterTasks,
+  getRecentActivity,
   normalizeTask,
   updateTask,
 } from '../app/state.js';
@@ -21,9 +22,12 @@ test('normalizeTask fills defaults for missing values', () => {
   assert.equal(task.description, 'Описание не указано');
   assert.equal(task.status, 'backlog');
   assert.equal(task.priority, 'medium');
+  assert.equal(task.updatedAt, task.createdAt);
+  assert.equal(task.events.length, 1);
+  assert.equal(task.events[0].type, 'created');
 });
 
-test('createTask prepends a new task to the list', () => {
+test('createTask prepends a new task to the list and seeds history', () => {
   const tasks = createTask(DEFAULT_TASKS, {
     title: 'Запустить AI triage',
     owner: 'Ira',
@@ -35,9 +39,10 @@ test('createTask prepends a new task to the list', () => {
 
   assert.equal(tasks.length, DEFAULT_TASKS.length + 1);
   assert.equal(tasks[0].title, 'Запустить AI triage');
+  assert.equal(tasks[0].events[0].type, 'created');
 });
 
-test('updateTask preserves identifiers and changes editable fields', () => {
+test('updateTask preserves identifiers, timestamps and adds update event', () => {
   const tasks = updateTask(DEFAULT_TASKS, 'task-001', {
     title: 'Обновлённая задача',
     owner: 'Ira',
@@ -53,6 +58,9 @@ test('updateTask preserves identifiers and changes editable fields', () => {
   assert.equal(updated.title, 'Обновлённая задача');
   assert.equal(updated.priority, 'critical');
   assert.equal(updated.status, 'review');
+  assert.equal(updated.events[0].type, 'updated');
+  assert.equal(updated.events[0].payload.title, true);
+  assert.notEqual(updated.updatedAt, updated.createdAt);
 });
 
 test('filterTasks applies status, priority and query filters together', () => {
@@ -90,16 +98,55 @@ test('computeStats returns aggregated dashboard values', () => {
   });
 });
 
-test('advanceTask moves a card to the next workflow status', () => {
+test('advanceTask moves a card to the next workflow status and logs event', () => {
   const tasks = advanceTask(DEFAULT_TASKS, 'task-001');
   const movedTask = tasks.find((task) => task.id === 'task-001');
 
   assert.equal(movedTask.status, 'review');
+  assert.equal(movedTask.events[0].type, 'status_changed');
+  assert.deepEqual(movedTask.events[0].payload, {
+    from: 'in_progress',
+    to: 'review',
+  });
 });
 
-test('cyclePriority moves a card to the next priority level', () => {
+test('cyclePriority moves a card to the next priority level and logs event', () => {
   const tasks = cyclePriority(DEFAULT_TASKS, 'task-003');
   const movedTask = tasks.find((task) => task.id === 'task-003');
 
   assert.equal(movedTask.priority, 'high');
+  assert.equal(movedTask.events[0].type, 'priority_changed');
+  assert.deepEqual(movedTask.events[0].payload, {
+    from: 'medium',
+    to: 'high',
+  });
+});
+
+test('getRecentActivity returns newest events across tasks', () => {
+  const tasks = [
+    normalizeTask({
+      id: 'task-a',
+      title: 'Task A',
+      createdAt: '2026-03-19T08:00:00.000Z',
+      updatedAt: '2026-03-19T08:00:00.000Z',
+      events: [
+        { type: 'created', createdAt: '2026-03-19T08:00:00.000Z' },
+      ],
+    }),
+    normalizeTask({
+      id: 'task-b',
+      title: 'Task B',
+      createdAt: '2026-03-19T09:00:00.000Z',
+      updatedAt: '2026-03-19T09:00:00.000Z',
+      events: [
+        { type: 'created', createdAt: '2026-03-19T09:00:00.000Z' },
+      ],
+    }),
+  ];
+
+  const activity = getRecentActivity(tasks, 1);
+
+  assert.equal(activity.length, 1);
+  assert.equal(activity[0].taskId, 'task-b');
+  assert.equal(activity[0].taskTitle, 'Task B');
 });

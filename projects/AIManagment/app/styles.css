@@ -115,8 +115,9 @@ textarea {
 .workspace-grid {
   margin-top: 24px;
   display: grid;
-  grid-template-columns: 360px minmax(0, 1fr);
+  grid-template-columns: 360px minmax(0, 1fr) 320px;
   gap: 20px;
+  align-items: start;
 }
 
 .panel {
@@ -300,6 +301,15 @@ textarea {
   line-height: 1.55;
 }
 
+.task-card__timestamps {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  color: var(--muted);
+  font-size: 0.9rem;
+  margin-bottom: 14px;
+}
+
 .task-card__footer {
   align-items: center;
   flex-wrap: wrap;
@@ -328,12 +338,51 @@ textarea {
   border-color: rgba(239, 68, 68, 0.35);
 }
 
+.activity-feed {
+  display: grid;
+  gap: 12px;
+}
+
+.activity-item {
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: 18px;
+  padding: 14px;
+  background: rgba(15, 23, 42, 0.45);
+}
+
+.activity-item__head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.activity-item__head span,
+.activity-item p {
+  color: var(--muted);
+}
+
+.activity-item p {
+  margin: 0;
+  line-height: 1.5;
+}
+
 .empty-state {
   margin: 0;
   border: 1px dashed rgba(148, 163, 184, 0.2);
   border-radius: 18px;
   padding: 20px;
   text-align: center;
+}
+
+@media (max-width: 1280px) {
+  .workspace-grid {
+    grid-template-columns: 360px minmax(0, 1fr);
+  }
+
+  .panel-activity {
+    grid-column: 1 / -1;
+  }
 }
 
 @media (max-width: 1180px) {
