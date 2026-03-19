@@ -136,9 +136,14 @@ textarea {
 }
 
 .task-form,
-.filters {
+.filters,
+.board-toolbar {
   display: grid;
   gap: 14px;
+}
+
+.board-toolbar {
+  min-width: min(100%, 680px);
 }
 
 label {
@@ -156,6 +161,10 @@ textarea {
   background: rgba(15, 23, 42, 0.8);
   color: var(--text);
   padding: 12px 14px;
+}
+
+input[type="search"] {
+  min-width: 0;
 }
 
 textarea {
@@ -214,6 +223,41 @@ textarea {
   grid-template-columns: repeat(4, minmax(240px, 1fr));
   gap: 16px;
   overflow-x: auto;
+}
+
+.status-tabs {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+  scrollbar-width: thin;
+}
+
+.status-tab {
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.72);
+  color: var(--text);
+  padding: 10px 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  white-space: nowrap;
+}
+
+.status-tab strong {
+  display: inline-flex;
+  min-width: 24px;
+  justify-content: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(56, 189, 248, 0.12);
+  color: var(--accent);
+}
+
+.status-tab--active {
+  border-color: rgba(56, 189, 248, 0.45);
+  background: rgba(14, 165, 233, 0.16);
 }
 
 .board-column {
@@ -300,6 +344,10 @@ textarea {
   .workspace-grid {
     grid-template-columns: 1fr;
   }
+
+  .board {
+    grid-template-columns: repeat(2, minmax(260px, 1fr));
+  }
 }
 
 @media (max-width: 760px) {
@@ -322,8 +370,33 @@ textarea {
   }
 
   .stats-grid,
-  .form-row,
-  .board {
+  .form-row {
     grid-template-columns: 1fr;
+  }
+
+  .filters {
+    grid-template-columns: 1fr;
+  }
+
+  .board-toolbar {
+    width: 100%;
+  }
+
+  .board {
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(85vw, 1fr);
+    grid-template-columns: none;
+    padding-bottom: 6px;
+    scroll-snap-type: x proximity;
+  }
+
+  .board-column {
+    scroll-snap-align: start;
+  }
+
+  .task-card__actions button,
+  .primary-button,
+  .secondary-button {
+    width: 100%;
   }
 }
