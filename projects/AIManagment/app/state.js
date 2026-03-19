@@ -48,12 +48,41 @@ export function createId() {
   return `task-${Math.random().toString(36).slice(2, 10)}`;
 }
 
+export function createEventId() {
+  return `evt-${Math.random().toString(36).slice(2, 10)}`;
+}
+
 export function sanitizeText(value, fallback = '') {
   const text = String(value ?? '').trim();
   return text || fallback;
 }
 
+export function createTaskEvent(type, payload = {}, createdAt = new Date().toISOString()) {
+  return {
+    id: createEventId(),
+    type,
+    payload,
+    createdAt,
+  };
+}
+
+function normalizeEvents(events = [], createdAt) {
+  if (!Array.isArray(events) || !events.length) {
+    return [createTaskEvent('created', {}, createdAt)];
+  }
+
+  return events.map((event) => ({
+    id: event.id ?? createEventId(),
+    type: sanitizeText(event.type, 'updated'),
+    payload: typeof event.payload === 'object' && event.payload !== null ? event.payload : {},
+    createdAt: event.createdAt ?? createdAt,
+  }));
+}
+
 export function normalizeTask(input) {
+  const createdAt = input.createdAt ?? new Date().toISOString();
+  const updatedAt = input.updatedAt ?? createdAt;
+
   return {
     id: input.id ?? createId(),
     title: sanitizeText(input.title, 'Новая AI-задача'),
@@ -62,12 +91,15 @@ export function normalizeTask(input) {
     priority: PRIORITIES.includes(input.priority) ? input.priority : 'medium',
     status: STATUSES.some((item) => item.id === input.status) ? input.status : 'backlog',
     description: sanitizeText(input.description, DEFAULT_DESCRIPTION),
-    createdAt: input.createdAt ?? new Date().toISOString(),
+    createdAt,
+    updatedAt,
+    events: normalizeEvents(input.events, createdAt),
   };
 }
 
 export function createTask(tasks, input) {
-  return [normalizeTask(input), ...tasks];
+  const createdAt = new Date().toISOString();
+  return [normalizeTask({ ...input, createdAt, updatedAt: createdAt, events: [createTaskEvent('created', {}, createdAt)] }), ...tasks];
 }
 
 export function updateTask(tasks, taskId, updates) {
@@ -76,12 +108,30 @@ export function updateTask(tasks, taskId, updates) {
       return task;
     }
 
-    return normalizeTask({
+    const timestamp = new Date().toISOString();
+    const nextTask = normalizeTask({
       ...task,
       ...updates,
       id: task.id,
       createdAt: task.createdAt,
+      updatedAt: timestamp,
+      events: task.events,
     });
+
+    return {
+      ...nextTask,
+      events: [
+        createTaskEvent('updated', {
+          title: task.title !== nextTask.title,
+          owner: task.owner !== nextTask.owner,
+          model: task.model !== nextTask.model,
+          priority: task.priority !== nextTask.priority,
+          status: task.status !== nextTask.status,
+          description: task.description !== nextTask.description,
+        }, timestamp),
+        ...(task.events ?? []),
+      ],
+    };
   });
 }
 
@@ -125,6 +175,13 @@ export function computeStats(tasks) {
   };
 }
 
+export function getRecentActivity(tasks, limit = 8) {
+  return tasks
+    .flatMap((task) => task.events.map((event) => ({ ...event, taskId: task.id, taskTitle: task.title })))
+    .sort((left, right) => new Date(right.createdAt) - new Date(left.createdAt))
+    .slice(0, limit);
+}
+
 export function advanceTask(tasks, taskId) {
   return tasks.map((task) => {
     if (task.id !== taskId) {
@@ -133,7 +190,14 @@ export function advanceTask(tasks, taskId) {
 
     const currentIndex = STATUSES.findIndex((status) => status.id === task.status);
     const nextIndex = Math.min(currentIndex + 1, STATUSES.length - 1);
-    return { ...task, status: STATUSES[nextIndex].id };
+    const nextStatus = STATUSES[nextIndex].id;
+    const timestamp = new Date().toISOString();
+    return {
+      ...task,
+      status: nextStatus,
+      updatedAt: timestamp,
+      events: [createTaskEvent('status_changed', { from: task.status, to: nextStatus }, timestamp), ...(task.events ?? [])],
+    };
   });
 }
 
@@ -145,7 +209,14 @@ export function cyclePriority(tasks, taskId) {
 
     const currentIndex = PRIORITIES.indexOf(task.priority);
     const nextIndex = (currentIndex + 1) % PRIORITIES.length;
-    return { ...task, priority: PRIORITIES[nextIndex] };
+    const nextPriority = PRIORITIES[nextIndex];
+    const timestamp = new Date().toISOString();
+    return {
+      ...task,
+      priority: nextPriority,
+      updatedAt: timestamp,
+      events: [createTaskEvent('priority_changed', { from: task.priority, to: nextPriority }, timestamp), ...(task.events ?? [])],
+    };
   });
 }
 
@@ -157,17 +228,17 @@ export function loadTasks(storage) {
   try {
     const raw = storage.getItem(STORAGE_KEY);
     if (!raw) {
-      return DEFAULT_TASKS;
+      return DEFAULT_TASKS.map(normalizeTask);
     }
 
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) {
-      return DEFAULT_TASKS;
+      return DEFAULT_TASKS.map(normalizeTask);
     }
 
     return parsed.map(normalizeTask);
   } catch {
-    return DEFAULT_TASKS;
+    return DEFAULT_TASKS.map(normalizeTask);
   }
 }
 

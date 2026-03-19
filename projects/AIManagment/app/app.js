@@ -6,6 +6,7 @@ import {
   computeStats,
   createTask,
   cyclePriority,
+  getRecentActivity,
   deleteTask,
   filterTasks,
   groupTasks,
@@ -43,6 +44,7 @@ const elements = {
   cancelButton: document.querySelector('[data-cancel-edit]'),
   taskIdInput: document.querySelector('#taskId'),
   statusTabs: document.querySelector('[data-status-tabs]'),
+  activityFeed: document.querySelector('[data-activity-feed]'),
 };
 
 function formatDate(value) {
@@ -52,6 +54,34 @@ function formatDate(value) {
     hour: '2-digit',
     minute: '2-digit',
   }).format(new Date(value));
+}
+
+function describeEvent(event) {
+  if (event.type === 'created') {
+    return 'Задача создана';
+  }
+
+  if (event.type === 'status_changed') {
+    const from = STATUSES.find((status) => status.id === event.payload.from)?.label ?? event.payload.from;
+    const to = STATUSES.find((status) => status.id === event.payload.to)?.label ?? event.payload.to;
+    return `Статус: ${from} → ${to}`;
+  }
+
+  if (event.type === 'priority_changed') {
+    return `Приоритет: ${event.payload.from} → ${event.payload.to}`;
+  }
+
+  if (event.type === 'updated') {
+    const changed = Object.entries(event.payload)
+      .filter(([, isChanged]) => Boolean(isChanged))
+      .map(([field]) => field);
+
+    return changed.length
+      ? `Обновлены поля: ${changed.join(', ')}`
+      : 'Карточка пересохранена без видимых изменений';
+  }
+
+  return 'Зафиксировано изменение';
 }
 
 function syncFormMode() {
@@ -104,8 +134,11 @@ function taskCard(task) {
         <span class="badge badge-${task.priority}">${task.priority}</span>
       </div>
       <p class="task-card__description">${task.description}</p>
-      <div class="task-card__footer">
+      <div class="task-card__timestamps">
         <span>Создано: ${formatDate(task.createdAt)}</span>
+        <span>Обновлено: ${formatDate(task.updatedAt)}</span>
+      </div>
+      <div class="task-card__footer">
         <div class="task-card__actions">
           <button type="button" data-action="edit" data-task-id="${task.id}">Редактировать</button>
           <button type="button" data-action="priority" data-task-id="${task.id}">Приоритет +</button>
@@ -138,6 +171,20 @@ function renderBoard() {
   }).join('');
 }
 
+function renderActivityFeed() {
+  const activity = getRecentActivity(state.tasks);
+
+  elements.activityFeed.innerHTML = activity.length ? activity.map((event) => `
+    <article class="activity-item">
+      <div class="activity-item__head">
+        <strong>${event.taskTitle}</strong>
+        <span>${formatDate(event.createdAt)}</span>
+      </div>
+      <p>${describeEvent(event)}</p>
+    </article>
+  `).join('') : '<p class="empty-state">История появится после изменений в задачах.</p>';
+}
+
 function renderStatusTabs() {
   const counts = groupTasks(filterTasks(state.tasks, { ...state.filters, status: 'all' }));
   const options = [
@@ -166,6 +213,7 @@ function render() {
   renderStats();
   renderBoard();
   renderStatusTabs();
+  renderActivityFeed();
   syncFormMode();
 }
 
